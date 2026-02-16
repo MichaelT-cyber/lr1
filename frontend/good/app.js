@@ -1,50 +1,11 @@
-const STORAGE_KEY = "passes_v1";
-
 const state = {
-  items: [],
-  editId: null,
-  isSubmitting: false,
-
-  searchQuery: "",
-  sortMode: "dateAsc", 
+  passes: [] 
 };
 
-function createId() {
-  return (crypto && crypto.randomUUID)
-    ? crypto.randomUUID()
-    : "id_" + Date.now() + "_" + Math.random().toString(16).slice(2);
-}
-
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return;
-
-    if (Array.isArray(parsed.items)) state.items = parsed.items;
-    if (typeof parsed.searchQuery === "string") state.searchQuery = parsed.searchQuery;
-    if (typeof parsed.sortMode === "string") state.sortMode = parsed.sortMode;
-  } catch (_) {
-  }
-}
-
-function saveState() {
-  const payload = {
-    items: state.items,
-    searchQuery: state.searchQuery,
-    sortMode: state.sortMode,
-  };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-}
-
-
 const dom = {
-  form: document.getElementById("createForm"),
-
-  formTitle: document.getElementById("formTitle"),
-  formMsg: document.getElementById("formMsg"),
+  form: document.getElementById("passForm"),
+  submitBtn: document.getElementById("submitBtn"),
+  resetBtn: document.getElementById("resetBtn"),
 
   userNameInput: document.getElementById("userNameInput"),
   reasonSelect: document.getElementById("reasonSelect"),
@@ -57,317 +18,144 @@ const dom = {
   validDateError: document.getElementById("validDateError"),
   commentError: document.getElementById("commentError"),
   issuerError: document.getElementById("issuerError"),
+  formError: document.getElementById("formError"),
 
-  submitBtn: document.getElementById("submitBtn"),
-  resetBtn: document.getElementById("resetBtn"),
-  cancelEditBtn: document.getElementById("cancelEditBtn"),
-
-  searchInput: document.getElementById("searchInput"),
-  sortSelect: document.getElementById("sortSelect"),
-  clearSearchBtn: document.getElementById("clearSearchBtn"),
-
-  emptyState: document.getElementById("emptyState"),
-  tbody: document.getElementById("itemsTableBody"),
+  tbody: document.getElementById("passesTbody")
 };
 
-
-function esc(v) {
-  return String(v)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function getViewItems() {
-  const q = state.searchQuery.trim().toLowerCase();
-  let list = state.items;
-
-  if (q) {
-    list = list.filter(x => (x.userName || "").toLowerCase().includes(q));
-  }
-
-  const sorted = [...list];
-
-  sorted.sort((a, b) => {
-    const mode = state.sortMode;
-
-    if (mode === "userAsc" || mode === "userDesc") {
-      const av = (a.userName || "").toLowerCase();
-      const bv = (b.userName || "").toLowerCase();
-      const cmp = av.localeCompare(bv, "uk");
-      return mode === "userAsc" ? cmp : -cmp;
-    }
-
-    const ad = a.validDate || "";
-    const bd = b.validDate || "";
-    const cmp = ad.localeCompare(bd);
-    return mode === "dateAsc" ? cmp : -cmp;
-  });
-
-  return sorted;
-}
-
-function render() {
-  const isEdit = state.editId !== null;
-  dom.formTitle.textContent = isEdit ? "Редагувати пропуск" : "Новий пропуск";
-  dom.submitBtn.textContent = isEdit ? "Зберегти зміни" : "Зберегти";
-  dom.cancelEditBtn.style.display = isEdit ? "inline-block" : "none";
-  dom.submitBtn.disabled = state.isSubmitting;
-
-  dom.searchInput.value = state.searchQuery;
-  dom.sortSelect.value = state.sortMode;
-
-  const view = getViewItems();
-
-  dom.emptyState.style.display = view.length === 0 ? "block" : "none";
-
-  dom.tbody.innerHTML = view.map((x, i) => `
-    <tr data-row-id="${esc(x.id)}">
-      <td>${i + 1}</td>
-      <td>${esc(x.userName)}</td>
-      <td>${esc(x.reason)}</td>
-      <td>${esc(x.validDate)}</td>
-      <td>${esc(x.issuer)}</td>
-      <td>${esc(x.comment)}</td>
-      <td>
-        <button type="button" class="edit-btn" data-id="${esc(x.id)}">Редагувати</button>
-        <button type="button" class="delete-btn danger" data-id="${esc(x.id)}">Видалити</button>
-      </td>
-    </tr>
-  `).join("");
-}
-
-
-function setFormMessage(msg) {
-  dom.formMsg.textContent = msg;
-}
-
-function showError(control, errorEl, msg) {
-  control.classList.add("invalid");
-  errorEl.textContent = msg;
+function computeNextId() {
+  if (state.passes.length === 0) return 1;
+  const maxId = Math.max(...state.passes.map(x => x.id));
+  return maxId + 1;
 }
 
 function clearErrors() {
-  [
-    dom.userNameInput,
-    dom.reasonSelect,
-    dom.validDateInput,
-    dom.commentInput,
-    dom.issuerInput,
-  ].forEach(el => el.classList.remove("invalid"));
+  dom.formError.textContent = "";
 
-  [
-    dom.userNameError,
-    dom.reasonError,
-    dom.validDateError,
-    dom.commentError,
-    dom.issuerError,
-  ].forEach(el => (el.textContent = ""));
+  const pairs = [
+    [dom.userNameInput, dom.userNameError],
+    [dom.reasonSelect, dom.reasonError],
+    [dom.validDateInput, dom.validDateError],
+    [dom.commentInput, dom.commentError],
+    [dom.issuerInput, dom.issuerError],
+  ];
+
+  for (const [input, err] of pairs) {
+    input.classList.remove("invalid");
+    err.textContent = "";
+  }
+}
+
+function setFieldError(input, errEl, msg) {
+  input.classList.add("invalid");
+  errEl.textContent = msg;
 }
 
 function readForm() {
   return {
-    userName: dom.userNameInput.value,
+    userName: dom.userNameInput.value.trim(),
     reason: dom.reasonSelect.value,
     validDate: dom.validDateInput.value,
-    comment: dom.commentInput.value,
-    issuer: dom.issuerInput.value,
+    comment: dom.commentInput.value.trim(),
+    issuer: dom.issuerInput.value.trim()
   };
 }
 
 function validate(dto) {
+  clearErrors();
   let ok = true;
 
-  if (dto.userName.trim() === "") {
-    showError(dom.userNameInput, dom.userNameError, "Вкажіть ім’я.");
-    ok = false;
-  }
-  if (dto.reason === "") {
-    showError(dom.reasonSelect, dom.reasonError, "Оберіть причину.");
-    ok = false;
-  }
+  if (dto.userName === "") { setFieldError(dom.userNameInput, dom.userNameError, "Ім'я та прізвище обов’язкові."); ok = false; }
+  if (dto.reason === "")   { setFieldError(dom.reasonSelect, dom.reasonError, "Оберіть Причину."); ok = false; }
+  if (dto.issuer === "")   { setFieldError(dom.issuerInput, dom.issuerError, "Хто допустив обов’язковий."); ok = false; }
+
   if (dto.validDate === "") {
-    showError(dom.validDateInput, dom.validDateError, "Оберіть дату.");
+    setFieldError(dom.validDateInput, dom.validDateError, "Вкажіть Дату дії пропуску");
     ok = false;
+  } else {
+    const today = new Date();
+    const todayStr = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+      .toISOString().slice(0, 10);
+    if (dto.validDate < todayStr) {
+      setFieldError(dom.validDateInput, dom.validDateError, "Дата не може бути в минулому.");
+      ok = false;
+    }
   }
-  if (dto.comment.trim().length < 3) {
-    showError(dom.commentInput, dom.commentError, "Коментар має бути хоча б 3 символи.");
-    ok = false;
-  }
-  if (dto.issuer.trim() === "") {
-    showError(dom.issuerInput, dom.issuerError, "Вкажіть, хто видав.");
+
+  if (dto.comment !== "" && dto.comment.length < 5) {
+    setFieldError(dom.commentInput, dom.commentError, "Коментар або порожній, або ≥ 5 символів.");
     ok = false;
   }
 
+  if (!ok) dom.formError.textContent = "Виправ помилки у полях";
   return ok;
 }
 
-
 function addItem(dto) {
-  state.items.push({
-    id: createId(),
-    userName: dto.userName.trim(),
-    reason: dto.reason,
-    validDate: dto.validDate,
-    comment: dto.comment.trim(),
-    issuer: dto.issuer.trim(),
+  state.passes.push({
+    id: computeNextId(),
+    ...dto
   });
 }
 
-function updateItem(id, dto) {
-  const idx = state.items.findIndex(x => x.id === id);
-  if (idx === -1) return false;
-
-  state.items[idx] = {
-    ...state.items[idx],
-    userName: dto.userName.trim(),
-    reason: dto.reason,
-    validDate: dto.validDate,
-    comment: dto.comment.trim(),
-    issuer: dto.issuer.trim(),
-  };
-  return true;
+function deleteItem(id) {
+  state.passes = state.passes.filter(x => x.id !== id);
 }
 
-function removeItem(id) {
-  const before = state.items.length;
-  state.items = state.items.filter(x => x.id !== id);
-  if (state.editId === id) state.editId = null;
-  return state.items.length !== before;
+function render() {
+  dom.tbody.innerHTML = state.passes.map((p, idx) => {
+    const comment = p.comment === "" ? "—" : p.comment;
+
+    return `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${p.userName}</td>
+        <td>${p.reason}</td>
+        <td>${p.validDate}</td>
+        <td>${p.issuer}</td>
+        <td>${comment}</td>
+        <td class="actions">
+          <button type="button" class="delete-btn" data-id="${p.id}">Видалити</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
 }
 
-function startEdit(id) {
-  const item = state.items.find(x => x.id === id);
-  if (!item) return;
-
-  state.editId = id;
-
-  dom.userNameInput.value = item.userName;
-  dom.reasonSelect.value = item.reason;
-  dom.validDateInput.value = item.validDate;
-  dom.commentInput.value = item.comment;
-  dom.issuerInput.value = item.issuer;
-
+function resetForm() {
+  dom.userNameInput.value = "";
+  dom.reasonSelect.value = "";
+  dom.validDateInput.value = "";
+  dom.commentInput.value = "";
+  dom.issuerInput.value = "";
   clearErrors();
-  setFormMessage("Режим редагування.");
   dom.userNameInput.focus();
-  render();
 }
-
-function cancelEdit() {
-  state.editId = null;
-  dom.form.reset();
-  clearErrors();
-  setFormMessage("Редагування скасовано.");
-  dom.userNameInput.focus();
-  render();
-}
-
 
 function onSubmit(e) {
   e.preventDefault();
-  if (state.isSubmitting) return;
-
-  clearErrors();
-  setFormMessage("");
 
   const dto = readForm();
-  if (!validate(dto)) {
-    setFormMessage("Виправте помилки у формі.");
-    return;
-  }
+  if (!validate(dto)) return;
 
-  state.isSubmitting = true;
+  addItem(dto);
   render();
-
-  try {
-    if (state.editId === null) {
-      addItem(dto);
-      setFormMessage("Запис додано.");
-    } else {
-      const ok = updateItem(state.editId, dto);
-      setFormMessage(ok ? "Зміни збережено." : "Запис не знайдено.");
-      state.editId = null;
-    }
-
-    saveState();
-
-    dom.form.reset();
-    dom.userNameInput.focus();
-    clearErrors();
-  } finally {
-    state.isSubmitting = false;
-    render();
-  }
-}
-
-function onReset() {
-  dom.form.reset();
-  clearErrors();
-  setFormMessage("");
-  dom.userNameInput.focus();
+  resetForm(); 
 }
 
 function onTableClick(e) {
-  const target = e.target;
-  if (!(target instanceof HTMLElement)) return;
+  const btn = e.target;
+  if (!btn.classList.contains("delete-btn")) return;
 
-  const id = target.dataset.id;
-  if (!id) return;
-
-  if (target.classList.contains("delete-btn")) {
-    const removed = removeItem(id);
-    if (removed) {
-      saveState();
-      setFormMessage("Запис видалено.");
-      render();
-    }
-    return;
-  }
-
-  if (target.classList.contains("edit-btn")) {
-    startEdit(id);
-    return;
-  }
-}
-
-function onSearchInput() {
-  state.searchQuery = dom.searchInput.value;
-  saveState();
+  const id = Number(btn.dataset.id);
+  deleteItem(id);
   render();
 }
 
-function onClearSearch() {
-  state.searchQuery = "";
-  dom.searchInput.value = "";
-  saveState();
-  render();
-  dom.searchInput.focus();
-}
+dom.form.addEventListener("submit", onSubmit);
+dom.resetBtn.addEventListener("click", resetForm);
 
-function onSortChange() {
-  state.sortMode = dom.sortSelect.value;
-  saveState();
-  render();
-}
+dom.tbody.addEventListener("click", onTableClick);
 
-
-
-(function init() {
-  loadState();
-
-  dom.form.addEventListener("submit", onSubmit);
-  dom.resetBtn.addEventListener("click", onReset);
-  dom.cancelEditBtn.addEventListener("click", cancelEdit);
-
-  dom.tbody.addEventListener("click", onTableClick);
-
-  dom.searchInput.addEventListener("input", onSearchInput);
-  dom.clearSearchBtn.addEventListener("click", onClearSearch);
-  dom.sortSelect.addEventListener("change", onSortChange);
-
-  render();
-  dom.userNameInput.focus();
-})();
+render();
+resetForm();
