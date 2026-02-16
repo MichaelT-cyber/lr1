@@ -1,0 +1,137 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f5f5f5;
+  color: #111;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+h1 { margin: 0; font-size: 32px; }
+.hint { margin: 6px 0 0; color: #555; }
+
+.badge {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 999px;
+  background: #fff;
+  font-weight: 700;
+}
+
+.layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.card {
+  flex: 1;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.subhint {
+  margin: -6px 0 12px;
+  color: #666;
+  font-size: 14px;
+}
+
+.field { margin-bottom: 12px; }
+
+.field label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #bbb;
+  border-radius: 10px;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+button {
+  padding: 9px 12px;
+  border: 1px solid #888;
+  border-radius: 10px;
+  cursor: pointer;
+  background: #fff;
+}
+
+button:disabled { opacity: .6; cursor: not-allowed; }
+button.danger { border-color: #c00; }
+button.ghost { border-style: dashed; }
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.toolbar input, .toolbar select {
+  padding: 9px 10px;
+  border: 1px solid #bbb;
+  border-radius: 10px;
+}
+
+.error-text {
+  color: #c00;
+  font-size: 12px;
+  min-height: 14px;
+  margin: 4px 0 0;
+}
+
+.invalid { border-color: #c00 !important; }
+
+.form-msg {
+  margin: 8px 0 0;
+  min-height: 18px;
+  color: #333;
+}
+
+.table-wrap { overflow-x: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  vertical-align: top;
+}
+
+th { background: #eee; }
+
+@media (max-width: 900px) {
+  .layout { flex-direction: column; }
+}
