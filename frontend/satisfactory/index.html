@@ -1,1 +1,111 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Система пропусків – Комп’ютерний клас</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js" defer></script>
+</head>
+
+<body>
+  <div class="container">
+    <header class="topbar">
+      <div>
+        <h1>Система пропусків</h1>
+        <p class="hint">Комп’ютерний клас</p>
+      </div>
+      <div class="badge">ЛР1</div>
+    </header>
+
+    <main class="layout">
+      <section class="card">
+        <h2 id="formTitle">Новий пропуск</h2>
+        <p class="subhint">Заповніть форму для створення пропуску.</p>
+
+        <form id="createForm" novalidate>
+          <div class="field">
+            <label for="userNameInput">Студент / відвідувач</label>
+            <input id="userNameInput" type="text" autocomplete="name" />
+            <p class="error-text" id="userNameError"></p>
+          </div>
+
+          <div class="field">
+            <label for="reasonSelect">Причина допуску</label>
+            <select id="reasonSelect">
+              <option value="">Оберіть зі списку</option>
+              <option value="Lab">Лабораторна</option>
+              <option value="Exam">Іспит / контроль</option>
+              <option value="Consultation">Консультація</option>
+              <option value="Other">Інше</option>
+            </select>
+            <p class="error-text" id="reasonError"></p>
+          </div>
+
+          <div class="field">
+            <label for="validDateInput">Дата дії пропуску</label>
+            <input id="validDateInput" type="date" />
+            <p class="error-text" id="validDateError"></p>
+          </div>
+
+          <div class="field">
+            <label for="commentInput">Коментар</label>
+            <textarea id="commentInput" rows="4"></textarea>
+            <p class="error-text" id="commentError"></p>
+          </div>
+
+          <div class="field">
+            <label for="issuerInput">Хто видав</label>
+            <input id="issuerInput" type="text" autocomplete="organization" />
+            <p class="error-text" id="issuerError"></p>
+          </div>
+
+          <div class="buttons">
+            <button id="submitBtn" type="submit">Зберегти</button>
+            <button id="resetBtn" type="button">Очистити</button>
+            <button id="cancelEditBtn" type="button" class="ghost" style="display:none;">Скасувати редагування</button>
+          </div>
+
+          <p class="form-msg" id="formMsg"></p>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Журнал пропусків</h2>
+        <p class="subhint">Пошук, сортування, редагування та видалення.</p>
+
+        <div class="toolbar">
+          <input id="searchInput" type="text" placeholder="Пошук за ім’ям..." />
+          <select id="sortSelect">
+            <option value="dateAsc">Дата: спочатку ранні</option>
+            <option value="dateDesc">Дата: спочатку пізні</option>
+            <option value="userAsc">Ім’я: A→Z</option>
+            <option value="userDesc">Ім’я: Z→A</option>
+          </select>
+          <button id="clearSearchBtn" type="button" class="ghost">Очистити пошук</button>
+        </div>
+
+        <p id="emptyState" class="hint">Поки що порожньо. Додайте перший пропуск.</p>
+
+        <div class="table-wrap">
+          <table id="itemsTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Студент</th>
+                <th>Причина</th>
+                <th>Дата</th>
+                <th>Хто видав</th>
+                <th>Коментар</th>
+                <th>Дії</th>
+              </tr>
+            </thead>
+            <tbody id="itemsTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
 
