@@ -1,1 +1,89 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ЛР1 — Варіант 8 (Добре)</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js" defer></script>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1>ЛР1 (Варіант 8): Список пропусків</h1>
+    </header>
+
+    <main class="layout">
+      <section class="card">
+        <h2>Додати пропуск</h2>
+
+        <form id="passForm" novalidate>
+          <div class="field">
+            <label for="userNameInput">Ім'я та прізвище</label>
+            <input id="userNameInput" type="text" />
+            <p class="error-text" id="userNameError"></p>
+          </div>
+
+          <div class="field">
+            <label for="reasonSelect">Причина</label>
+            <select id="reasonSelect">
+              <option value="">Оберіть причину</option>
+              <option value="Study">Навчання</option>
+              <option value="LabWork">Лабораторна</option>
+              <option value="Exam">Іспит/залік</option>
+              <option value="Maintenance">Обслуговування</option>
+              <option value="Other">Інше</option>
+            </select>
+            <p class="error-text" id="reasonError"></p>
+          </div>
+
+          <div class="field">
+            <label for="validDateInput">Дата дії пропуску</label>
+            <input id="validDateInput" type="date" />
+            <p class="error-text" id="validDateError"></p>
+          </div>
+
+          <div class="field">
+            <label for="commentInput">Коментар</label>
+            <textarea id="commentInput" rows="4"></textarea>
+            <p class="error-text" id="commentError"></p>
+          </div>
+
+          <div class="field">
+            <label for="issuerInput">Хто допустив</label>
+            <input id="issuerInput" type="text" />
+            <p class="error-text" id="issuerError"></p>
+          </div>
+
+          <p class="error-text" id="formError"></p>
+
+          <div class="buttons">
+            <button type="submit" id="submitBtn">Додати</button>
+            <button type="button" id="resetBtn">Очистити</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card">
+  <h2>Список пропусків</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Ім'я та прізвище</th>
+          <th>Причина</th>
+          <th>Дата дії пропуску</th>
+          <th>Хто допустив</th>
+          <th>Коментар</th>
+          <th>Дії</th>
+        </tr>
+      </thead>
+      <tbody id="passesTbody"></tbody>
+    </table>
+  </div>
+</section>
+
 
