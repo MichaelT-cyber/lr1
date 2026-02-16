@@ -3,40 +3,37 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Система пропусків – Комп’ютерний клас</title>
+  <title>ЛР1 — Варіант 8 (Відмінно)</title>
   <link rel="stylesheet" href="styles.css" />
   <script src="app.js" defer></script>
 </head>
 
 <body>
   <div class="container">
-    <header class="topbar">
-      <div>
-        <h1>Система пропусків</h1>
-        <p class="hint">Комп’ютерний клас</p>
-      </div>
-      <div class="badge">ЛР1</div>
+    <header>
+      <h1>ЛР1 (Варіант 8): Список пропусків</h1>
+      <p class="hint">CRUD + пошук/фільтр/сортування + localStorage.</p>
     </header>
 
     <main class="layout">
       <section class="card">
-        <h2 id="formTitle">Новий пропуск</h2>
-        <p class="subhint">Заповніть форму для створення пропуску.</p>
+        <h2 id="formTitle">Додати пропуск</h2>
 
-        <form id="createForm" novalidate>
+        <form id="passForm" novalidate>
           <div class="field">
-            <label for="userNameInput">Студент / відвідувач</label>
-            <input id="userNameInput" type="text" autocomplete="name" />
+            <label for="userNameInput">Ім'я та прізвище</label>
+            <input id="userNameInput" type="text" />
             <p class="error-text" id="userNameError"></p>
           </div>
 
           <div class="field">
-            <label for="reasonSelect">Причина допуску</label>
+            <label for="reasonSelect">Причина</label>
             <select id="reasonSelect">
-              <option value="">Оберіть зі списку</option>
-              <option value="Lab">Лабораторна</option>
-              <option value="Exam">Іспит / контроль</option>
-              <option value="Consultation">Консультація</option>
+              <option value="">Оберіть причину</option>
+              <option value="Study">Навчання</option>
+              <option value="LabWork">Лабораторна</option>
+              <option value="Exam">Іспит/залік</option>
+              <option value="Maintenance">Обслуговування</option>
               <option value="Other">Інше</option>
             </select>
             <p class="error-text" id="reasonError"></p>
@@ -55,52 +52,72 @@
           </div>
 
           <div class="field">
-            <label for="issuerInput">Хто видав</label>
-            <input id="issuerInput" type="text" autocomplete="organization" />
+            <label for="issuerInput">Хто допустив</label>
+            <input id="issuerInput" type="text" />
             <p class="error-text" id="issuerError"></p>
           </div>
 
+          <p class="error-text form-error" id="formError"></p>
+
           <div class="buttons">
-            <button id="submitBtn" type="submit">Зберегти</button>
-            <button id="resetBtn" type="button">Очистити</button>
-            <button id="cancelEditBtn" type="button" class="ghost" style="display:none;">Скасувати редагування</button>
+            <button type="submit" id="submitBtn">Додати</button>
+            <button type="button" id="resetBtn">Очистити</button>
           </div>
 
-          <p class="form-msg" id="formMsg"></p>
+          <input type="hidden" id="editingId" value="" />
         </form>
       </section>
 
       <section class="card">
-        <h2>Журнал пропусків</h2>
-        <p class="subhint">Пошук, сортування, редагування та видалення.</p>
+        <h2>Список пропусків</h2>
 
         <div class="toolbar">
-          <input id="searchInput" type="text" placeholder="Пошук за ім’ям..." />
-          <select id="sortSelect">
-            <option value="dateAsc">Дата: спочатку ранні</option>
-            <option value="dateDesc">Дата: спочатку пізні</option>
-            <option value="userAsc">Ім’я: A→Z</option>
-            <option value="userDesc">Ім’я: Z→A</option>
-          </select>
-          <button id="clearSearchBtn" type="button" class="ghost">Очистити пошук</button>
+          <div class="tool">
+            <label for="searchInput">Пошук (UserName)</label>
+            <input id="searchInput" type="text" />
+          </div>
+
+          <div class="tool">
+            <label for="filterReason">Фільтр (Reason)</label>
+            <select id="filterReason">
+              <option value="All">Усі</option>
+              <option value="Study">Навчання</option>
+              <option value="LabWork">Лабораторна</option>
+              <option value="Exam">Іспит/залік</option>
+              <option value="Maintenance">Обслуговування</option>
+              <option value="Other">Інше</option>
+            </select>
+          </div>
+
+          <div class="tool">
+            <label for="sortSelect">Сортування (ValidDate)</label>
+            <select id="sortSelect">
+              <option value="dateDesc">Спочатку нові</option>
+              <option value="dateAsc">Спочатку старі</option>
+            </select>
+          </div>
+
+          <div class="tool tool-right">
+            <button type="button" id="clearAllBtn" class="danger">Очистити всі</button>
+          </div>
         </div>
 
-        <p id="emptyState" class="hint">Поки що порожньо. Додайте перший пропуск.</p>
+        <p id="emptyState" class="empty">Поки що немає записів.</p>
 
         <div class="table-wrap">
-          <table id="itemsTable">
+          <table>
             <thead>
               <tr>
                 <th>#</th>
-                <th>Студент</th>
+                <th>Ім'я та прізвище</th>
                 <th>Причина</th>
-                <th>Дата</th>
-                <th>Хто видав</th>
+                <th>Дата дії пропуску</th>
+                <th>Хто допустив</th>
                 <th>Коментар</th>
                 <th>Дії</th>
               </tr>
             </thead>
-            <tbody id="itemsTableBody"></tbody>
+            <tbody id="passesTbody"></tbody>
           </table>
         </div>
       </section>
