@@ -1,298 +1,379 @@
-const STORAGE_KEY = "lr1_variant8_passes";
+const STORAGE_KEY = "passes_v1";
 
 const state = {
-  passes: [], 
-  ui: {
-    searchUserName: "",
-    filterReason: "All",
-    sortMode: "dateDesc"
-  }
+  items: [],
+  editId: null,
+  isSubmitting: false,
+  searchQuery: "",
+  sortMode: "dateAsc",
 };
 
-const dom = {
-  form: document.getElementById("passForm"),
-  formTitle: document.getElementById("formTitle"),
-  submitBtn: document.getElementById("submitBtn"),
-  resetBtn: document.getElementById("resetBtn"),
+function createId() {
+  return (crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : "id_" + Date.now() + "_" + Math.random().toString(16).slice(2);
+}
 
-  editingId: document.getElementById("editingId"),
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return;
+
+    if (Array.isArray(parsed.items)) state.items = parsed.items;
+    if (typeof parsed.searchQuery === "string") state.searchQuery = parsed.searchQuery;
+    if (typeof parsed.sortMode === "string") state.sortMode = parsed.sortMode;
+  } catch (_) {}
+}
+
+function saveState() {
+  const payload = {
+    items: state.items,
+    searchQuery: state.searchQuery,
+    sortMode: state.sortMode,
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+}
+
+const dom = {
+  form: document.getElementById("createForm"),
+  formTitle: document.getElementById("formTitle"),
+  formMsg: document.getElementById("formMsg"),
+
   userNameInput: document.getElementById("userNameInput"),
   reasonSelect: document.getElementById("reasonSelect"),
   validDateInput: document.getElementById("validDateInput"),
   commentInput: document.getElementById("commentInput"),
   issuerInput: document.getElementById("issuerInput"),
 
-  formError: document.getElementById("formError"),
   userNameError: document.getElementById("userNameError"),
   reasonError: document.getElementById("reasonError"),
   validDateError: document.getElementById("validDateError"),
   commentError: document.getElementById("commentError"),
   issuerError: document.getElementById("issuerError"),
 
-  tbody: document.getElementById("passesTbody"),
-  emptyState: document.getElementById("emptyState"),
+  submitBtn: document.getElementById("submitBtn"),
+  resetBtn: document.getElementById("resetBtn"),
+  cancelEditBtn: document.getElementById("cancelEditBtn"),
 
   searchInput: document.getElementById("searchInput"),
-  filterReason: document.getElementById("filterReason"),
   sortSelect: document.getElementById("sortSelect"),
-  clearAllBtn: document.getElementById("clearAllBtn")
+  clearSearchBtn: document.getElementById("clearSearchBtn"),
+
+  emptyState: document.getElementById("emptyState"),
+  tbody: document.getElementById("itemsTableBody"),
 };
 
-function saveToStorage() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.passes));
+function esc(v) {
+  return String(v)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-function loadFromStorage() {
-  const json = localStorage.getItem(STORAGE_KEY);
-  if (json === null) return [];
-  try {
-    const data = JSON.parse(json);
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
+function getViewItems() {
+  const q = state.searchQuery.trim().toLowerCase();
+  let list = state.items;
+
+  if (q) {
+    list = list.filter(x => (x.userName || "").toLowerCase().includes(q));
   }
+
+  const sorted = [...list];
+
+  sorted.sort((a, b) => {
+    const mode = state.sortMode;
+
+    if (mode === "userAsc" || mode === "userDesc") {
+      const av = (a.userName || "").toLowerCase();
+      const bv = (b.userName || "").toLowerCase();
+      const cmp = av.localeCompare(bv, "uk");
+      return mode === "userAsc" ? cmp : -cmp;
+    }
+
+    const ad = a.validDate || "";
+    const bd = b.validDate || "";
+    const cmp = ad.localeCompare(bd);
+    return mode === "dateAsc" ? cmp : -cmp;
+  });
+
+  return sorted;
 }
 
-function computeNextId(items) {
-  if (items.length === 0) return 1;
-  return Math.max(...items.map(x => x.id)) + 1;
+function render() {
+  const isEdit = state.editId !== null;
+  dom.formTitle.textContent = isEdit ? "Редагувати пропуск" : "Новий пропуск";
+  dom.submitBtn.textContent = isEdit ? "Зберегти зміни" : "Зберегти";
+  dom.cancelEditBtn.style.display = isEdit ? "inline-block" : "none";
+  dom.submitBtn.disabled = state.isSubmitting;
+
+  dom.searchInput.value = state.searchQuery;
+  dom.sortSelect.value = state.sortMode;
+
+  const view = getViewItems();
+  dom.emptyState.style.display = view.length === 0 ? "block" : "none";
+
+  dom.tbody.innerHTML = view.map((x, i) => `
+    <tr data-row-id="${esc(x.id)}">
+      <td>${i + 1}</td>
+      <td>${esc(x.userName)}</td>
+      <td>${esc(x.reason)}</td>
+      <td>${esc(x.validDate)}</td>
+      <td>${esc(x.issuer)}</td>
+      <td>${esc(x.comment)}</td>
+      <td>
+        <button type="button" class="edit-btn" data-id="${esc(x.id)}">Редагувати</button>
+        <button type="button" class="delete-btn danger" data-id="${esc(x.id)}">Видалити</button>
+      </td>
+    </tr>
+  `).join("");
+}
+
+function setFormMessage(msg) {
+  dom.formMsg.textContent = msg;
+}
+
+function showError(control, errorEl, msg) {
+  control.classList.add("invalid");
+  errorEl.textContent = msg;
+}
+
+function clearErrors() {
+  [
+    dom.userNameInput,
+    dom.reasonSelect,
+    dom.validDateInput,
+    dom.commentInput,
+    dom.issuerInput,
+  ].forEach(el => el.classList.remove("invalid"));
+
+  [
+    dom.userNameError,
+    dom.reasonError,
+    dom.validDateError,
+    dom.commentError,
+    dom.issuerError,
+  ].forEach(el => (el.textContent = ""));
 }
 
 function readForm() {
   return {
-    editingId: dom.editingId.value.trim(), 
-    userName: dom.userNameInput.value.trim(),
+    userName: dom.userNameInput.value,
     reason: dom.reasonSelect.value,
     validDate: dom.validDateInput.value,
-    comment: dom.commentInput.value.trim(),
-    issuer: dom.issuerInput.value.trim()
+    comment: dom.commentInput.value,
+    issuer: dom.issuerInput.value,
   };
 }
 
-function clearFieldError(input, errEl) {
-  input.classList.remove("invalid");
-  errEl.textContent = "";
-}
-
-function setFieldError(input, errEl, msg) {
-  input.classList.add("invalid");
-  errEl.textContent = msg;
-}
-
-function clearAllErrors() {
-  dom.formError.textContent = "";
-  clearFieldError(dom.userNameInput, dom.userNameError);
-  clearFieldError(dom.reasonSelect, dom.reasonError);
-  clearFieldError(dom.validDateInput, dom.validDateError);
-  clearFieldError(dom.commentInput, dom.commentError);
-  clearFieldError(dom.issuerInput, dom.issuerError);
-}
-
 function validate(dto) {
-  clearAllErrors();
   let ok = true;
 
-  if (dto.userName === "") { setFieldError(dom.userNameInput, dom.userNameError, "Ім'я та прізвище обов’язкові."); ok = false; }
-  else if (dto.userName.length < 3 || dto.userName.length > 30) { setFieldError(dom.userNameInput, dom.userNameError, "Ім'я та прізвище 3–30 символів."); ok = false; }
-
-  if (dto.reason === "") { setFieldError(dom.reasonSelect, dom.reasonError, "Оберіть причину."); ok = false; }
-
-  if (dto.validDate === "") { setFieldError(dom.validDateInput, dom.validDateError, "Вкажіть дату."); ok = false; }
-  else {
-    const today = new Date();
-    const todayStr = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-      .toISOString().slice(0, 10);
-    if (dto.validDate < todayStr) { setFieldError(dom.validDateInput, dom.validDateError, "Дата не може бути в минулому."); ok = false; }
+  if (dto.userName.trim() === "") {
+    showError(dom.userNameInput, dom.userNameError, "Вкажіть ім’я.");
+    ok = false;
   }
 
-  if (dto.issuer === "") { setFieldError(dom.issuerInput, dom.issuerError, "Хто допустив обов’язковий."); ok = false; }
-  else if (dto.issuer.length < 2 || dto.issuer.length > 30) { setFieldError(dom.issuerInput, dom.issuerError, "Хто допустив 2–30 символів."); ok = false; }
+  if (dto.reason === "") {
+    showError(dom.reasonSelect, dom.reasonError, "Оберіть причину.");
+    ok = false;
+  }
 
-  if (dto.comment !== "" && dto.comment.length < 5) { setFieldError(dom.commentInput, dom.commentError, "Коментар або порожній, або ≥ 5 символів."); ok = false; }
+  if (dto.validDate === "") {
+    showError(dom.validDateInput, dom.validDateError, "Оберіть дату.");
+    ok = false;
+  } else {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  if (!ok) dom.formError.textContent = "Є помилки. Виправ поля.";
+    const selected = new Date(dto.validDate);
+    selected.setHours(0, 0, 0, 0);
+
+    if (isNaN(selected.getTime())) {
+      showError(dom.validDateInput, dom.validDateError, "Некоректна дата.");
+      ok = false;
+    } else if (selected < today) {
+      showError(dom.validDateInput, dom.validDateError, "Дата не може бути в минулому.");
+      ok = false;
+    }
+  }
+
+  if (dto.comment.trim().length < 3) {
+    showError(dom.commentInput, dom.commentError, "Коментар має бути хоча б 3 символи.");
+    ok = false;
+  }
+
+  if (dto.issuer.trim() === "") {
+    showError(dom.issuerInput, dom.issuerError, "Вкажіть, хто видав.");
+    ok = false;
+  }
+
   return ok;
 }
 
-function addPass(dto) {
-  state.passes.push({
-    id: computeNextId(state.passes),
-    userName: dto.userName,
+function addItem(dto) {
+  state.items.push({
+    id: createId(),
+    userName: dto.userName.trim(),
     reason: dto.reason,
     validDate: dto.validDate,
-    comment: dto.comment,
-    issuer: dto.issuer
+    comment: dto.comment.trim(),
+    issuer: dto.issuer.trim(),
   });
 }
 
-function updatePass(id, dto) {
-  const target = state.passes.find(x => x.id === id);
-  if (!target) return false;
-  target.userName = dto.userName;
-  target.reason = dto.reason;
-  target.validDate = dto.validDate;
-  target.comment = dto.comment;
-  target.issuer = dto.issuer;
+function updateItem(id, dto) {
+  const idx = state.items.findIndex(x => x.id === id);
+  if (idx === -1) return false;
+
+  state.items[idx] = {
+    ...state.items[idx],
+    userName: dto.userName.trim(),
+    reason: dto.reason,
+    validDate: dto.validDate,
+    comment: dto.comment.trim(),
+    issuer: dto.issuer.trim(),
+  };
   return true;
 }
 
-function deletePass(id) {
-  state.passes = state.passes.filter(x => x.id !== id);
-}
-
-function selectVisiblePasses() {
-  const q = state.ui.searchUserName.trim().toLowerCase();
-
-  let items = state.passes.filter(p => p.userName.toLowerCase().includes(q));
-
-  if (state.ui.filterReason !== "All") {
-    items = items.filter(p => p.reason === state.ui.filterReason);
-  }
-
-  return [...items].sort((a, b) => {
-    if (state.ui.sortMode === "dateAsc") return a.validDate.localeCompare(b.validDate);
-    return b.validDate.localeCompare(a.validDate);
-  });
-}
-
-function render() {
-  const visible = selectVisiblePasses();
-  dom.emptyState.style.display = visible.length === 0 ? "block" : "none";
-
-  dom.tbody.innerHTML = visible.map((p, index) => {
-    const c = p.comment === "" ? "—" : p.comment;
-    return `
-      <tr>
-        <td>${index + 1}</td>
-        <td>${p.userName}</td>
-        <td>${p.reason}</td>
-        <td>${p.validDate}</td>
-        <td>${p.issuer}</td>
-        <td>${c}</td>
-        <td class="actions">
-          <button type="button" class="edit-btn" data-id="${p.id}">Редагувати</button>
-          <button type="button" class="delete-btn" data-id="${p.id}">Видалити</button>
-        </td>
-      </tr>
-    `;
-  }).join("");
-}
-
-function resetForm() {
-  dom.editingId.value = "";
-  dom.userNameInput.value = "";
-  dom.reasonSelect.value = "";
-  dom.validDateInput.value = "";
-  dom.commentInput.value = "";
-  dom.issuerInput.value = "";
-
-  dom.formTitle.textContent = "Додати пропуск";
-  dom.submitBtn.textContent = "Додати";
-
-  clearAllErrors();
-  dom.userNameInput.focus();
+function removeItem(id) {
+  const before = state.items.length;
+  state.items = state.items.filter(x => x.id !== id);
+  if (state.editId === id) state.editId = null;
+  return state.items.length !== before;
 }
 
 function startEdit(id) {
-  const pass = state.passes.find(x => x.id === id);
-  if (!pass) return;
+  const item = state.items.find(x => x.id === id);
+  if (!item) return;
 
-  dom.editingId.value = String(pass.id);
-  dom.userNameInput.value = pass.userName;
-  dom.reasonSelect.value = pass.reason;
-  dom.validDateInput.value = pass.validDate;
-  dom.commentInput.value = pass.comment;
-  dom.issuerInput.value = pass.issuer;
+  state.editId = id;
 
-  dom.formTitle.textContent = `Редагувати пропуск #${pass.id}`;
-  dom.submitBtn.textContent = "Зберегти";
+  dom.userNameInput.value = item.userName;
+  dom.reasonSelect.value = item.reason;
+  dom.validDateInput.value = item.validDate;
+  dom.commentInput.value = item.comment;
+  dom.issuerInput.value = item.issuer;
 
-  clearAllErrors();
+  clearErrors();
+  setFormMessage("Режим редагування.");
   dom.userNameInput.focus();
+  render();
+}
+
+function cancelEdit() {
+  state.editId = null;
+  dom.form.reset();
+  clearErrors();
+  setFormMessage("Редагування скасовано.");
+  dom.userNameInput.focus();
+  render();
 }
 
 function onSubmit(e) {
   e.preventDefault();
+  if (state.isSubmitting) return;
+
+  clearErrors();
+  setFormMessage("");
 
   const dto = readForm();
-  if (!validate(dto)) return;
-
-  const isEditing = dto.editingId !== "";
-
-  if (isEditing) {
-    const id = Number(dto.editingId);
-    const ok = updatePass(id, dto);
-    if (!ok) {
-      dom.formError.textContent = "Не знайшов запис для оновлення, його могли видалити.";
-      return;
-    }
-  } else {
-    const dup = state.passes.some(p =>
-      p.userName.toLowerCase() === dto.userName.toLowerCase() &&
-      p.validDate === dto.validDate
-    );
-    if (dup) {
-      dom.formError.textContent = "Такий пропуск вже існує (UserName + ValidDate).";
-      return;
-    }
-    addPass(dto);
+  if (!validate(dto)) {
+    setFormMessage("Виправте помилки у формі.");
+    return;
   }
 
-  saveToStorage();
+  state.isSubmitting = true;
   render();
-  resetForm();
+
+  try {
+    if (state.editId === null) {
+      addItem(dto);
+      setFormMessage("Запис додано.");
+    } else {
+      const ok = updateItem(state.editId, dto);
+      setFormMessage(ok ? "Зміни збережено." : "Запис не знайдено.");
+      state.editId = null;
+    }
+
+    saveState();
+    dom.form.reset();
+    dom.userNameInput.focus();
+    clearErrors();
+  } finally {
+    state.isSubmitting = false;
+    render();
+  }
 }
 
-function onToolbarChange() {
-  state.ui.searchUserName = dom.searchInput.value;
-  state.ui.filterReason = dom.filterReason.value;
-  state.ui.sortMode = dom.sortSelect.value;
-  render();
-}
-
-function onClearAll() {
-  const sure = confirm("Точно очистити всі записи? Це видалить і з localStorage.");
-  if (!sure) return;
-  state.passes = [];
-  saveToStorage();
-  render();
-  resetForm();
+function onReset() {
+  dom.form.reset();
+  clearErrors();
+  setFormMessage("");
+  dom.userNameInput.focus();
 }
 
 function onTableClick(e) {
-  const t = e.target;
+  const target = e.target;
+  if (!(target instanceof HTMLElement)) return;
 
-  if (t.classList.contains("delete-btn")) {
-    const id = Number(t.dataset.id);
-    deletePass(id);
-    saveToStorage();
-    render();
-    if (dom.editingId.value === String(id)) resetForm();
+  const id = target.dataset.id;
+  if (!id) return;
+
+  if (target.classList.contains("delete-btn")) {
+    const removed = removeItem(id);
+    if (removed) {
+      saveState();
+      setFormMessage("Запис видалено.");
+      render();
+    }
     return;
   }
 
-  if (t.classList.contains("edit-btn")) {
-    startEdit(Number(t.dataset.id));
-    return;
+  if (target.classList.contains("edit-btn")) {
+    startEdit(id);
   }
 }
 
-function init() {
-  state.passes = loadFromStorage();
+function onSearchInput() {
+  state.searchQuery = dom.searchInput.value;
+  saveState();
+  render();
+}
+
+function onClearSearch() {
+  state.searchQuery = "";
+  dom.searchInput.value = "";
+  saveState();
+  render();
+  dom.searchInput.focus();
+}
+
+function onSortChange() {
+  state.sortMode = dom.sortSelect.value;
+  saveState();
+  render();
+}
+
+(function init() {
+  loadState();
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  dom.validDateInput.min = todayStr;
 
   dom.form.addEventListener("submit", onSubmit);
-  dom.resetBtn.addEventListener("click", resetForm);
-
-  dom.searchInput.addEventListener("input", onToolbarChange);
-  dom.filterReason.addEventListener("change", onToolbarChange);
-  dom.sortSelect.addEventListener("change", onToolbarChange);
-
-  dom.clearAllBtn.addEventListener("click", onClearAll);
-
+  dom.resetBtn.addEventListener("click", onReset);
+  dom.cancelEditBtn.addEventListener("click", cancelEdit);
   dom.tbody.addEventListener("click", onTableClick);
+  dom.searchInput.addEventListener("input", onSearchInput);
+  dom.clearSearchBtn.addEventListener("click", onClearSearch);
+  dom.sortSelect.addEventListener("change", onSortChange);
 
   render();
-  resetForm();
-}
-
-init();
+  dom.userNameInput.focus();
+})();
