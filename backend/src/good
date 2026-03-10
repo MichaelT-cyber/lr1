@@ -1,0 +1,695 @@
+// підключаємо express
+const express = require("express");
+
+// створюємо сервер
+const app = express();
+
+// порт сервера
+const PORT = 3000;
+
+// дозволяємо читати JSON
+app.use(express.json());
+
+/*
+  Middleware логування запитів.
+  Логує: метод, шлях, статус відповіді і час виконання.
+*/
+app.use((req, res, next) => {
+    const start = Date.now();
+
+    // коли відповідь завершиться — виводимо лог
+    res.on("finish", () => {
+        const timeMs = Date.now() - start;
+        console.log(`${req.method} ${req.originalUrl} -> ${res.statusCode} (${timeMs}ms)`);
+    });
+
+    next(); // передаємо керування далі до маршрутів
+});
+
+/*
+  Тимчасове сховище даних у пам'яті.
+  Після перезапуску сервера дані зникнуть — і це нормально для цієї ЛР.
+*/
+let users = [];
+let passes = [];
+let reasons = [];
+let logs = [];
+
+/*
+  DTO (Data Transfer Objects)
+  Використовуються для узгодженості запитів/відповідей:
+  - CreateXRequestDto
+  - UpdateXRequestDto
+  - XResponseDto
+  Тут це реалізовано як функції, щоб не ускладнювати лабораторну.
+*/
+
+// ===== USERS DTO =====
+function CreateUserRequestDto(body) {
+    return {
+        fullName: body?.fullName,
+        role: body?.role,
+        isActive: body?.isActive
+    };
+}
+
+function UpdateUserRequestDto(body) {
+    return {
+        fullName: body?.fullName,
+        role: body?.role,
+        isActive: body?.isActive
+    };
+}
+
+function UserResponseDto(user) {
+    return {
+        id: user.id,
+        fullName: user.fullName,
+        role: user.role,
+        isActive: user.isActive
+    };
+}
+
+// ===== REASONS DTO =====
+function CreateReasonRequestDto(body) {
+    return {
+        title: body?.title,
+        description: body?.description
+    };
+}
+
+function UpdateReasonRequestDto(body) {
+    return {
+        title: body?.title,
+        description: body?.description
+    };
+}
+
+function ReasonResponseDto(reason) {
+    return {
+        id: reason.id,
+        title: reason.title,
+        description: reason.description
+    };
+}
+
+// ===== PASSES DTO =====
+function CreatePassRequestDto(body) {
+    return {
+        userId: body?.userId,
+        validFrom: body?.validFrom,
+        validTo: body?.validTo,
+        status: body?.status
+    };
+}
+
+function UpdatePassRequestDto(body) {
+    return {
+        userId: body?.userId,
+        validFrom: body?.validFrom,
+        validTo: body?.validTo,
+        status: body?.status
+    };
+}
+
+function PassResponseDto(pass) {
+    return {
+        id: pass.id,
+        userId: pass.userId,
+        validFrom: pass.validFrom,
+        validTo: pass.validTo,
+        status: pass.status
+    };
+}
+
+// ===== LOGS DTO =====
+function CreateLogRequestDto(body) {
+    return {
+        userId: body?.userId,
+        passId: body?.passId,
+        action: body?.action,
+        createdAt: body?.createdAt
+    };
+}
+
+function UpdateLogRequestDto(body) {
+    return {
+        userId: body?.userId,
+        passId: body?.passId,
+        action: body?.action,
+        createdAt: body?.createdAt
+    };
+}
+
+function LogResponseDto(log) {
+    return {
+        id: log.id,
+        userId: log.userId,
+        passId: log.passId,
+        action: log.action,
+        createdAt: log.createdAt
+    };
+}
+/*
+  Тестовий маршрут
+*/
+app.get("/", (req, res) => {
+    res.json({ message: "Server працює" });
+});
+
+/*
+  GET /api/users
+  Отримати список усіх користувачів (з фільтрацією)
+  Приклад: /api/users?isActive=true
+*/
+app.get("/api/users", (req, res) => {
+    const { isActive } = req.query;
+
+    if (isActive !== undefined) {
+        const isActiveBool = String(isActive) === "true";
+        const filtered = users.filter((u) => u.isActive === isActiveBool);
+        return res.status(200).json(filtered);
+    }
+
+    res.status(200).json(users);
+});
+
+/*
+  GET /api/users/:id
+  Отримати одного користувача за id
+*/
+app.get("/api/users/:id", (req, res) => {
+    const userId = Number(req.params.id);
+
+    const user = users.find((u) => u.id === userId);
+
+    if (!user) {
+        return res.status(404).json({ message: "Користувача не знайдено" });
+    }
+
+    res.status(200).json(user);
+});
+
+/*
+  POST /api/users
+  Створити нового користувача
+*/
+app.post("/api/users", (req, res) => {
+    const { fullName, role, isActive } = req.body;
+
+    // мінімальна валідація
+    if (!fullName || typeof fullName !== "string" || fullName.trim().length < 2) {
+        return res.status(400).json({
+            message: "Поле fullName обов'язкове і має містити мінімум 2 символи"
+        });
+    }
+
+    if (!role || typeof role !== "string" || role.trim().length < 2) {
+        return res.status(400).json({
+            message: "Поле role обов'язкове і має містити мінімум 2 символи"
+        });
+    }
+
+    const newUser = {
+        id: Date.now(),
+        fullName: fullName.trim(),
+        role: role.trim(),
+        isActive: typeof isActive === "boolean" ? isActive : true
+    };
+
+    users.push(newUser);
+
+    res.status(201).json(newUser);
+});
+
+/*
+  PUT /api/users/:id
+  Оновити користувача
+*/
+app.put("/api/users/:id", (req, res) => {
+    const userId = Number(req.params.id);
+    const { fullName, role, isActive } = req.body;
+
+    const userIndex = users.findIndex((u) => u.id === userId);
+
+    if (userIndex === -1) {
+        return res.status(404).json({ message: "Користувача не знайдено" });
+    }
+
+    if (!fullName || typeof fullName !== "string" || fullName.trim().length < 2) {
+        return res.status(400).json({
+            message: "Поле fullName обов'язкове і має містити мінімум 2 символи"
+        });
+    }
+
+    if (!role || typeof role !== "string" || role.trim().length < 2) {
+        return res.status(400).json({
+            message: "Поле role обов'язкове і має містити мінімум 2 символи"
+        });
+    }
+
+    users[userIndex] = {
+        ...users[userIndex],
+        fullName: fullName.trim(),
+        role: role.trim(),
+        isActive: typeof isActive === "boolean" ? isActive : users[userIndex].isActive
+    };
+
+    res.status(200).json(users[userIndex]);
+});
+
+/*
+  DELETE /api/users/:id
+  Видалити користувача
+*/
+app.delete("/api/users/:id", (req, res) => {
+    const userId = Number(req.params.id);
+
+    const userIndex = users.findIndex((u) => u.id === userId);
+
+    if (userIndex === -1) {
+        return res.status(404).json({ message: "Користувача не знайдено" });
+    }
+
+    users.splice(userIndex, 1);
+
+    res.status(204).send();
+});
+
+/*
+  GET /api/reasons
+  Отримати список усіх причин
+*/
+app.get("/api/reasons", (req, res) => {
+    res.status(200).json(reasons);
+});
+
+/*
+  GET /api/reasons/:id
+  Отримати одну причину за id
+*/
+app.get("/api/reasons/:id", (req, res) => {
+    // беремо id з параметра URL і перетворюємо у число
+    const reasonId = Number(req.params.id);
+
+    // шукаємо причину в масиві
+    const reason = reasons.find((r) => r.id === reasonId);
+
+    // якщо не знайдено — повертаємо 404
+    if (!reason) {
+        return res.status(404).json({ message: "Причину не знайдено" });
+    }
+
+    // якщо знайдено — повертаємо об'єкт
+    res.status(200).json(reason);
+});
+
+/*
+  POST /api/reasons
+  Створити нову причину
+*/
+app.post("/api/reasons", (req, res) => {
+    // дістаємо поля з body запиту
+    const { title, description } = req.body;
+
+    // перевіряємо title
+    if (!title || typeof title !== "string" || title.trim().length < 2) {
+        return res.status(400).json({
+            message: "Поле title обов'язкове і має містити мінімум 2 символи"
+        });
+    }
+
+    // перевіряємо description
+    if (!description || typeof description !== "string" || description.trim().length < 3) {
+        return res.status(400).json({
+            message: "Поле description обов'язкове і має містити мінімум 3 символи"
+        });
+    }
+
+    // створюємо новий об'єкт причини
+    const newReason = {
+        id: Date.now(),
+        title: title.trim(),
+        description: description.trim()
+    };
+
+    // додаємо нову причину в масив
+    reasons.push(newReason);
+
+    // повертаємо створений об'єкт
+    res.status(201).json(newReason);
+});
+
+/*
+  PUT /api/reasons/:id
+  Оновити причину
+*/
+app.put("/api/reasons/:id", (req, res) => {
+    // беремо id з URL
+    const reasonId = Number(req.params.id);
+
+    // дістаємо нові значення з body
+    const { title, description } = req.body;
+
+    // шукаємо індекс причини в масиві
+    const reasonIndex = reasons.findIndex((r) => r.id === reasonId);
+
+    // якщо не знайдено — повертаємо 404
+    if (reasonIndex === -1) {
+        return res.status(404).json({ message: "Причину не знайдено" });
+    }
+
+    // перевіряємо title
+    if (!title || typeof title !== "string" || title.trim().length < 2) {
+        return res.status(400).json({
+            message: "Поле title обов'язкове і має містити мінімум 2 символи"
+        });
+    }
+
+    // перевіряємо description
+    if (!description || typeof description !== "string" || description.trim().length < 3) {
+        return res.status(400).json({
+            message: "Поле description обов'язкове і має містити мінімум 3 символи"
+        });
+    }
+
+    // оновлюємо об'єкт у масиві
+    reasons[reasonIndex] = {
+        ...reasons[reasonIndex],
+        title: title.trim(),
+        description: description.trim()
+    };
+
+    // повертаємо оновлену причину
+    res.status(200).json(reasons[reasonIndex]);
+});
+
+/*
+  DELETE /api/reasons/:id
+  Видалити причину
+*/
+app.delete("/api/reasons/:id", (req, res) => {
+    // беремо id з URL
+    const reasonId = Number(req.params.id);
+
+    // шукаємо індекс причини
+    const reasonIndex = reasons.findIndex((r) => r.id === reasonId);
+
+    // якщо не знайдено — повертаємо 404
+    if (reasonIndex === -1) {
+        return res.status(404).json({ message: "Причину не знайдено" });
+    }
+
+    // видаляємо причину з масиву
+    reasons.splice(reasonIndex, 1);
+
+    // повертаємо порожню успішну відповідь
+    res.status(204).send();
+});
+/*
+  GET /api/logs
+  Отримати список усіх логів
+*/
+app.get("/api/logs", (req, res) => {
+    res.status(200).json(logs);
+});
+
+/*
+  GET /api/logs/:id
+  Отримати один лог за id
+*/
+app.get("/api/logs/:id", (req, res) => {
+    // беремо id з параметра URL і перетворюємо у число
+    const logId = Number(req.params.id);
+
+    // шукаємо лог у масиві
+    const log = logs.find((l) => l.id === logId);
+
+    // якщо лог не знайдено — повертаємо 404
+    if (!log) {
+        return res.status(404).json({ message: "Лог не знайдено" });
+    }
+
+    // якщо лог знайдено — повертаємо його
+    res.status(200).json(log);
+});
+
+/*
+  POST /api/logs
+  Створити новий лог
+*/
+app.post("/api/logs", (req, res) => {
+    // дістаємо поля з body запиту
+    const { userId, passId, action, createdAt } = req.body;
+
+    // перевіряємо userId
+    if (!userId) {
+        return res.status(400).json({ message: "Поле userId є обов'язковим" });
+    }
+
+    // перевіряємо passId
+    if (!passId) {
+        return res.status(400).json({ message: "Поле passId є обов'язковим" });
+    }
+
+    // перевіряємо action
+    if (!action || typeof action !== "string" || action.trim().length < 3) {
+        return res.status(400).json({
+            message: "Поле action обов'язкове і має містити мінімум 3 символи"
+        });
+    }
+
+    // перевіряємо, чи існує користувач
+    const user = users.find((u) => u.id === Number(userId));
+    if (!user) {
+        return res.status(400).json({ message: "Користувача з таким userId не існує" });
+    }
+
+    // перевіряємо, чи існує пропуск
+    const pass = passes.find((p) => p.id === Number(passId));
+    if (!pass) {
+        return res.status(400).json({ message: "Пропуску з таким passId не існує" });
+    }
+
+    // створюємо новий лог
+    const newLog = {
+        id: Date.now(),
+        userId: Number(userId),
+        passId: Number(passId),
+        action: action.trim(),
+        createdAt: createdAt || new Date().toISOString()
+    };
+
+    // додаємо лог у масив
+    logs.push(newLog);
+
+    // повертаємо створений лог
+    res.status(201).json(newLog);
+});
+
+/*
+  PUT /api/logs/:id
+  Оновити лог
+*/
+app.put("/api/logs/:id", (req, res) => {
+    // беремо id логу з URL
+    const logId = Number(req.params.id);
+
+    // шукаємо лог у масиві
+    const log = logs.find((l) => l.id === logId);
+
+    // якщо лог не знайдено — повертаємо 404
+    if (!log) {
+        return res.status(404).json({ message: "Лог не знайдено" });
+    }
+
+    // якщо передали userId — перевіряємо, чи існує користувач
+    if (req.body.userId !== undefined) {
+        const user = users.find((u) => u.id === Number(req.body.userId));
+
+        if (!user) {
+            return res.status(400).json({ message: "Користувача з таким userId не існує" });
+        }
+
+        log.userId = Number(req.body.userId);
+    }
+
+    // якщо передали passId — перевіряємо, чи існує пропуск
+    if (req.body.passId !== undefined) {
+        const pass = passes.find((p) => p.id === Number(req.body.passId));
+
+        if (!pass) {
+            return res.status(400).json({ message: "Пропуску з таким passId не існує" });
+        }
+
+        log.passId = Number(req.body.passId);
+    }
+
+    // якщо передали action — перевіряємо його
+    if (req.body.action !== undefined) {
+        if (typeof req.body.action !== "string" || req.body.action.trim().length < 3) {
+            return res.status(400).json({
+                message: "Поле action має містити мінімум 3 символи"
+            });
+        }
+
+        log.action = req.body.action.trim();
+    }
+
+    // якщо передали createdAt — оновлюємо його
+    if (req.body.createdAt !== undefined) {
+        log.createdAt = req.body.createdAt;
+    }
+
+    // повертаємо оновлений лог
+    res.status(200).json(log);
+});
+
+/*
+  DELETE /api/logs/:id
+  Видалити лог
+*/
+app.delete("/api/logs/:id", (req, res) => {
+    // беремо id з URL
+    const logId = Number(req.params.id);
+
+    // шукаємо індекс логу
+    const logIndex = logs.findIndex((l) => l.id === logId);
+
+    // якщо лог не знайдено — повертаємо 404
+    if (logIndex === -1) {
+        return res.status(404).json({ message: "Лог не знайдено" });
+    }
+
+    // видаляємо лог з масиву
+    logs.splice(logIndex, 1);
+
+    // повертаємо порожню успішну відповідь
+    res.status(204).send();
+});
+
+/*
+  GET /api/passes
+  Отримати список усіх пропусків (з фільтрацією)
+  Приклад: /api/passes?status=active
+*/
+app.get("/api/passes", (req, res) => {
+    const { status } = req.query;
+
+    if (status) {
+        const filtered = passes.filter((p) => p.status === String(status));
+        return res.status(200).json(filtered);
+    }
+
+    res.status(200).json(passes);
+});
+
+/*
+  GET /api/passes/:id
+  Отримати один пропуск за id
+*/
+app.get("/api/passes/:id", (req, res) => {
+    const id = Number(req.params.id);
+
+    const pass = passes.find((p) => p.id === id);
+
+    if (!pass) {
+        return res.status(404).json({ message: "Пропуск не знайдено" });
+    }
+
+    res.status(200).json(pass);
+});
+
+/*
+  POST /api/passes
+  Створити новий пропуск
+*/
+app.post("/api/passes", (req, res) => {
+    const { userId, validFrom, validTo, status } = req.body;
+
+    // перевіряємо, чи переданий userId
+    if (!userId) {
+        return res.status(400).json({ message: "Поле userId є обов'язковим" });
+    }
+
+    // перевіряємо, чи існує користувач з таким id
+    const user = users.find((u) => u.id === Number(userId));
+
+    if (!user) {
+        return res.status(400).json({ message: "Користувача з таким userId не існує" });
+    }
+
+    // перевіряємо обов'язкові поля дат
+    if (!validFrom || !validTo) {
+        return res.status(400).json({ message: "Поля validFrom та validTo є обов'язковими" });
+    }
+
+    const newPass = {
+        id: Date.now(),
+        userId: Number(userId),
+        validFrom,
+        validTo,
+        status: status || "active"
+    };
+
+    passes.push(newPass);
+
+    res.status(201).json(newPass);
+});
+
+/*
+  PUT /api/passes/:id
+  Оновити пропуск
+*/
+app.put("/api/passes/:id", (req, res) => {
+    const id = Number(req.params.id);
+
+    const pass = passes.find((p) => p.id === id);
+
+    if (!pass) {
+        return res.status(404).json({ message: "Пропуск не знайдено" });
+    }
+
+    // якщо передали userId, перевіряємо чи такий user існує
+    if (req.body.userId !== undefined) {
+        const user = users.find((u) => u.id === Number(req.body.userId));
+
+        if (!user) {
+            return res.status(400).json({ message: "Користувача з цим userId не існує" });
+        }
+
+        pass.userId = Number(req.body.userId);
+    }
+
+    // оновлюємо поля, якщо вони передані
+    pass.validFrom = req.body.validFrom ?? pass.validFrom;
+    pass.validTo = req.body.validTo ?? pass.validTo;
+    pass.status = req.body.status ?? pass.status;
+
+    res.status(200).json(pass);
+});
+
+/*
+  DELETE /api/passes/:id
+  Видалити пропуск
+*/
+app.delete("/api/passes/:id", (req, res) => {
+    const id = Number(req.params.id);
+
+    const index = passes.findIndex((p) => p.id === id);
+
+    if (index === -1) {
+        return res.status(404).json({ message: "Пропуск не знайдено" });
+    }
+
+    passes.splice(index, 1);
+
+    res.status(204).send();
+});
+
+/*
+  запуск сервера
+*/
+app.listen(PORT, () => {
+    console.log(`Server запущений на http://localhost:${PORT}`);
+});
