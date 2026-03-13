@@ -1,3 +1,56 @@
+// Знаходимо форму на сторінці
+const form = document.getElementById("createForm");
+
+// Слухаємо відправку форми
+form.addEventListener("submit", async (event) => {
+
+    // Забороняємо перезавантаження сторінки
+    event.preventDefault();
+
+    // Отримуємо значення з поля імені
+    const userName = document.getElementById("userNameInput").value.trim();
+
+    // Отримуємо вибрану причину
+    const reason = document.getElementById("reasonSelect").value;
+
+    // Формуємо об'єкт для відправки
+    const requestData = {
+        userName: userName,
+        reason: reason
+    };
+
+    try {
+
+        // Відправляємо POST-запит на сервер
+        const response = await fetch("http://localhost:3000/api/form-submit", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(requestData)
+        });
+
+        // Отримуємо відповідь сервера
+        const result = await response.json();
+
+        console.log("Відповідь сервера:", result);
+
+        if (!response.ok) {
+            alert(result.error.message);
+            return;
+        }
+
+        alert(result.message);
+
+    } catch (error) {
+
+        console.error("Помилка:", error);
+        alert("Не вдалося підключитися до сервера");
+
+    }
+
+});
+
 const STORAGE_KEY = "passes_v1";
 
 const state = {
