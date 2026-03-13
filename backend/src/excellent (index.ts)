@@ -1,6 +1,8 @@
 import express, { Request, Response, NextFunction } from "express";
+import cors from "cors"
 
 const app = express();
+app.use(cors());
 const PORT = 3000;
 
 app.use(express.json());
@@ -556,6 +558,32 @@ app.delete("/api/passes/:id", (req: Request, res: Response) => {
     passes.splice(index, 1);
 
     res.status(204).send();
+});
+
+/*
+  POST /api/form-submit
+  Маршрут для отримання даних з фронтенд-форми
+*/
+app.post("/api/form-submit", (req: Request, res: Response) => {
+
+    const { userName, reason } = req.body;
+
+    if (!userName || userName.trim().length < 2) {
+        return sendError(res, 400, "Ім'я повинно містити мінімум 2 символи");
+    }
+
+    if (!reason) {
+        return sendError(res, 400, "Причина є обов'язковою");
+    }
+
+    res.status(201).json({
+        message: "Дані форми отримано",
+        data: {
+            userName,
+            reason
+        }
+    });
+
 });
 
 app.listen(PORT, () => {
