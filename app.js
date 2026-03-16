@@ -1,298 +1,613 @@
-const STORAGE_KEY = "lr1_variant8_passes";
+// ------------------------------------
+// Базова адреса API
+// ------------------------------------
+const API = "http://localhost:3000/api";
 
+// ------------------------------------
+// Поточний стан сторінки
+// ------------------------------------
 const state = {
-  passes: [], 
-  ui: {
-    searchUserName: "",
-    filterReason: "All",
-    sortMode: "dateDesc"
+  currentEntity: "users",
+  editId: null,
+  searchQuery: "",
+};
+
+// ------------------------------------
+// Конфігурація сутностей
+// ------------------------------------
+const entityConfig = {
+  users: {
+    formTitleCreate: "Новий користувач",
+    formTitleEdit: "Редагувати користувача",
+    tableTitle: "Журнал користувачів",
+    formSubhint: "Створення та редагування користувачів.",
+    tableSubhint: "Перегляд, пошук, редагування та видалення користувачів.",
+    endpoint: "users",
+
+    fields: [
+      { name: "fullName", label: "ПІБ", type: "text" },
+
+      {
+        name: "role",
+        label: "Роль",
+        type: "select",
+        options: [
+          { value: "student", text: "Студент" },
+          { value: "teacher", text: "Викладач" }
+        ]
+      },
+
+      {
+        name: "isActive",
+        label: "Активний",
+        type: "select",
+        options: [
+          { value: "true", text: "Так" },
+          { value: "false", text: "Ні" }
+        ]
+      }
+    ],
+
+    columns: [
+      { key: "id", label: "#" },
+      { key: "fullName", label: "ПІБ" },
+      { key: "role", label: "Роль" },
+      { key: "isActive", label: "Активний" }
+    ]
+  },
+
+  passes: {
+    formTitleCreate: "Новий пропуск",
+    formTitleEdit: "Редагувати пропуск",
+    tableTitle: "Журнал пропусків",
+    formSubhint: "Створення та редагування пропусків.",
+    tableSubhint: "Перегляд, пошук, редагування та видалення пропусків.",
+    endpoint: "passes",
+
+    fields: [
+      { name: "userId", label: "ID користувача", type: "number" },
+      { name: "validFrom", label: "Дата початку", type: "date" },
+      { name: "validTo", label: "Дата завершення", type: "date" },
+      {
+        name: "status",
+        label: "Статус",
+        type: "select",
+        options: [
+          { value: "active", text: "Активний" },
+          { value: "finished", text: "Завершений" },
+          { value: "canceled", text: "Скасований" }
+        ]
+      }
+    ],
+
+    columns: [
+      { key: "id", label: "#" },
+      { key: "userId", label: "User ID" },
+      { key: "validFrom", label: "Дата початку" },
+      { key: "validTo", label: "Дата завершення" },
+      { key: "status", label: "Статус" }
+    ]
+  },
+
+  reasons: {
+    formTitleCreate: "Нова причина",
+    formTitleEdit: "Редагувати причину",
+    tableTitle: "Журнал причин",
+    formSubhint: "Створення та редагування причин.",
+    tableSubhint: "Перегляд, пошук, редагування та видалення причин.",
+    endpoint: "reasons",
+
+    fields: [
+      {
+        name: "title",
+        label: "Назва",
+        type: "select",
+        options: [
+          { value: "practice", text: "Практична робота" },
+          { value: "lab", text: "Лабораторна робота" },
+          { value: "self", text: "Самостійна робота" },
+          { value: "exam", text: "Екзамен" },
+          { value: "test", text: "Тестування" },
+          { value: "other", text: "Інше" }
+        ]
+      },
+      { name: "description", label: "Опис", type: "textarea" }
+    ],
+
+    columns: [
+      { key: "id", label: "#" },
+      { key: "title", label: "Назва" },
+      { key: "description", label: "Опис" }
+    ]
+  },
+
+  logs: {
+    formTitleCreate: "Новий лог",
+    formTitleEdit: "Редагувати лог",
+    tableTitle: "Журнал логів",
+    formSubhint: "Створення та редагування логів.",
+    tableSubhint: "Перегляд, пошук, редагування та видалення логів.",
+    endpoint: "logs",
+
+    fields: [
+      { name: "userId", label: "ID користувача", type: "number" },
+      { name: "passId", label: "ID пропуску", type: "number" },
+      {
+        name: "action",
+        label: "Дія",
+        type: "select",
+        options: [
+          { value: "create", text: "Створено" },
+          { value: "update", text: "Оновлено" },
+          { value: "delete", text: "Видалено" }
+        ]
+      },
+      { name: "createdAt", label: "Дата створення", type: "datetime-local" }
+    ],
+
+    columns: [
+      { key: "id", label: "#" },
+      { key: "userId", label: "User ID" },
+      { key: "passId", label: "Pass ID" },
+      { key: "action", label: "Дія" },
+      { key: "createdAt", label: "Дата створення" }
+    ]
   }
 };
 
+// ------------------------------------
+// Посилання на DOM-елементи
+// ------------------------------------
 const dom = {
-  form: document.getElementById("passForm"),
+  tabs: document.querySelectorAll(".tab-btn"),
   formTitle: document.getElementById("formTitle"),
+  formSubhint: document.getElementById("formSubhint"),
+  tableTitle: document.getElementById("tableTitle"),
+  tableSubhint: document.getElementById("tableSubhint"),
+  formFields: document.getElementById("formFields"),
+  entityForm: document.getElementById("entityForm"),
   submitBtn: document.getElementById("submitBtn"),
   resetBtn: document.getElementById("resetBtn"),
-
-  editingId: document.getElementById("editingId"),
-  userNameInput: document.getElementById("userNameInput"),
-  reasonSelect: document.getElementById("reasonSelect"),
-  validDateInput: document.getElementById("validDateInput"),
-  commentInput: document.getElementById("commentInput"),
-  issuerInput: document.getElementById("issuerInput"),
-
-  formError: document.getElementById("formError"),
-  userNameError: document.getElementById("userNameError"),
-  reasonError: document.getElementById("reasonError"),
-  validDateError: document.getElementById("validDateError"),
-  commentError: document.getElementById("commentError"),
-  issuerError: document.getElementById("issuerError"),
-
-  tbody: document.getElementById("passesTbody"),
-  emptyState: document.getElementById("emptyState"),
-
+  cancelEditBtn: document.getElementById("cancelEditBtn"),
+  formMsg: document.getElementById("formMsg"),
   searchInput: document.getElementById("searchInput"),
-  filterReason: document.getElementById("filterReason"),
-  sortSelect: document.getElementById("sortSelect"),
-  clearAllBtn: document.getElementById("clearAllBtn")
+  clearSearchBtn: document.getElementById("clearSearchBtn"),
+  emptyState: document.getElementById("emptyState"),
+  itemsTableHead: document.getElementById("itemsTableHead"),
+  itemsTableBody: document.getElementById("itemsTableBody"),
 };
 
-function saveToStorage() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.passes));
+// ------------------------------------
+// Безпечне екранування HTML
+// ------------------------------------
+function esc(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-function loadFromStorage() {
-  const json = localStorage.getItem(STORAGE_KEY);
-  if (json === null) return [];
-  try {
-    const data = JSON.parse(json);
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
+// ------------------------------------
+// Отримати конфіг поточної сутності
+// ------------------------------------
+function getCurrentConfig() {
+  return entityConfig[state.currentEntity];
+}
+
+// ------------------------------------
+// Повідомлення під формою
+// ------------------------------------
+function setFormMessage(message) {
+  if (dom.formMsg) {
+    dom.formMsg.textContent = message;
   }
 }
 
-function computeNextId(items) {
-  if (items.length === 0) return 1;
-  return Math.max(...items.map(x => x.id)) + 1;
-}
+// ------------------------------------
+// Намалювати поля форми
+// ------------------------------------
+function renderFormFields(item = null) {
+  const config = getCurrentConfig();
 
-function readForm() {
-  return {
-    editingId: dom.editingId.value.trim(), 
-    userName: dom.userNameInput.value.trim(),
-    reason: dom.reasonSelect.value,
-    validDate: dom.validDateInput.value,
-    comment: dom.commentInput.value.trim(),
-    issuer: dom.issuerInput.value.trim()
-  };
-}
-
-function clearFieldError(input, errEl) {
-  input.classList.remove("invalid");
-  errEl.textContent = "";
-}
-
-function setFieldError(input, errEl, msg) {
-  input.classList.add("invalid");
-  errEl.textContent = msg;
-}
-
-function clearAllErrors() {
-  dom.formError.textContent = "";
-  clearFieldError(dom.userNameInput, dom.userNameError);
-  clearFieldError(dom.reasonSelect, dom.reasonError);
-  clearFieldError(dom.validDateInput, dom.validDateError);
-  clearFieldError(dom.commentInput, dom.commentError);
-  clearFieldError(dom.issuerInput, dom.issuerError);
-}
-
-function validate(dto) {
-  clearAllErrors();
-  let ok = true;
-
-  if (dto.userName === "") { setFieldError(dom.userNameInput, dom.userNameError, "Ім'я та прізвище обов’язкові."); ok = false; }
-  else if (dto.userName.length < 3 || dto.userName.length > 30) { setFieldError(dom.userNameInput, dom.userNameError, "Ім'я та прізвище 3–30 символів."); ok = false; }
-
-  if (dto.reason === "") { setFieldError(dom.reasonSelect, dom.reasonError, "Оберіть причину."); ok = false; }
-
-  if (dto.validDate === "") { setFieldError(dom.validDateInput, dom.validDateError, "Вкажіть дату."); ok = false; }
-  else {
-    const today = new Date();
-    const todayStr = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-      .toISOString().slice(0, 10);
-    if (dto.validDate < todayStr) { setFieldError(dom.validDateInput, dom.validDateError, "Дата не може бути в минулому."); ok = false; }
+  if (!dom.formFields) {
+    console.error("Елемент #formFields не знайдено в HTML");
+    return;
   }
 
-  if (dto.issuer === "") { setFieldError(dom.issuerInput, dom.issuerError, "Хто допустив обов’язковий."); ok = false; }
-  else if (dto.issuer.length < 2 || dto.issuer.length > 30) { setFieldError(dom.issuerInput, dom.issuerError, "Хто допустив 2–30 символів."); ok = false; }
+  dom.formFields.innerHTML = config.fields.map((field) => {
+    const value = item ? (item[field.name] ?? "") : "";
 
-  if (dto.comment !== "" && dto.comment.length < 5) { setFieldError(dom.commentInput, dom.commentError, "Коментар або порожній, або ≥ 5 символів."); ok = false; }
+    if (field.type === "textarea") {
+      return `
+        <div class="field">
+          <label for="${field.name}">${field.label}</label>
+          <textarea id="${field.name}" rows="4">${esc(value)}</textarea>
+          <p class="error-text" id="${field.name}Error"></p>
+        </div>
+      `;
+    }
 
-  if (!ok) dom.formError.textContent = "Є помилки. Виправ поля.";
-  return ok;
-}
+    if (field.type === "select") {
+      return `
+        <div class="field">
+          <label for="${field.name}">${field.label}</label>
+          <select id="${field.name}">
+            ${field.options.map((option) => `
+              <option value="${esc(option.value)}" ${String(value) === option.value ? "selected" : ""}>
+                ${esc(option.text)}
+              </option>
+            `).join("")}
+          </select>
+          <p class="error-text" id="${field.name}Error"></p>
+        </div>
+      `;
+    }
 
-function addPass(dto) {
-  state.passes.push({
-    id: computeNextId(state.passes),
-    userName: dto.userName,
-    reason: dto.reason,
-    validDate: dto.validDate,
-    comment: dto.comment,
-    issuer: dto.issuer
-  });
-}
-
-function updatePass(id, dto) {
-  const target = state.passes.find(x => x.id === id);
-  if (!target) return false;
-  target.userName = dto.userName;
-  target.reason = dto.reason;
-  target.validDate = dto.validDate;
-  target.comment = dto.comment;
-  target.issuer = dto.issuer;
-  return true;
-}
-
-function deletePass(id) {
-  state.passes = state.passes.filter(x => x.id !== id);
-}
-
-function selectVisiblePasses() {
-  const q = state.ui.searchUserName.trim().toLowerCase();
-
-  let items = state.passes.filter(p => p.userName.toLowerCase().includes(q));
-
-  if (state.ui.filterReason !== "All") {
-    items = items.filter(p => p.reason === state.ui.filterReason);
-  }
-
-  return [...items].sort((a, b) => {
-    if (state.ui.sortMode === "dateAsc") return a.validDate.localeCompare(b.validDate);
-    return b.validDate.localeCompare(a.validDate);
-  });
-}
-
-function render() {
-  const visible = selectVisiblePasses();
-  dom.emptyState.style.display = visible.length === 0 ? "block" : "none";
-
-  dom.tbody.innerHTML = visible.map((p, index) => {
-    const c = p.comment === "" ? "—" : p.comment;
     return `
-      <tr>
-        <td>${index + 1}</td>
-        <td>${p.userName}</td>
-        <td>${p.reason}</td>
-        <td>${p.validDate}</td>
-        <td>${p.issuer}</td>
-        <td>${c}</td>
-        <td class="actions">
-          <button type="button" class="edit-btn" data-id="${p.id}">Редагувати</button>
-          <button type="button" class="delete-btn" data-id="${p.id}">Видалити</button>
-        </td>
-      </tr>
+      <div class="field">
+        <label for="${field.name}">${field.label}</label>
+        <input id="${field.name}" type="${field.type}" value="${esc(value)}" />
+        <p class="error-text" id="${field.name}Error"></p>
+      </div>
     `;
   }).join("");
 }
 
+// ------------------------------------
+// Намалювати шапку таблиці
+// ------------------------------------
+function renderTableHead() {
+  const config = getCurrentConfig();
+
+  if (!dom.itemsTableHead) return;
+
+  dom.itemsTableHead.innerHTML = `
+    <tr>
+      ${config.columns.map((col) => `<th>${esc(col.label)}</th>`).join("")}
+      <th>Дії</th>
+    </tr>
+  `;
+}
+
+// ------------------------------------
+// Намалювати таблицю
+// ------------------------------------
+function renderTable(items) {
+  const config = getCurrentConfig();
+
+  if (dom.emptyState) {
+    dom.emptyState.style.display = items.length === 0 ? "block" : "none";
+  }
+
+  if (!dom.itemsTableBody) return;
+
+  dom.itemsTableBody.innerHTML = items.map((item) => `
+    <tr>
+      ${config.columns.map((col) => `<td>${esc(item[col.key])}</td>`).join("")}
+      <td>
+        <button type="button" class="edit-btn" data-id="${esc(item.id)}">Редагувати</button>
+        <button type="button" class="delete-btn danger" data-id="${esc(item.id)}">Видалити</button>
+      </td>
+    </tr>
+  `).join("");
+}
+
+// ------------------------------------
+// Оновити заголовки
+// ------------------------------------
+function updateTitles() {
+  const config = getCurrentConfig();
+
+  if (dom.formTitle) {
+    dom.formTitle.textContent = state.editId ? config.formTitleEdit : config.formTitleCreate;
+  }
+
+  if (dom.formSubhint) {
+    dom.formSubhint.textContent = config.formSubhint;
+  }
+
+  if (dom.tableTitle) {
+    dom.tableTitle.textContent = config.tableTitle;
+  }
+
+  if (dom.tableSubhint) {
+    dom.tableSubhint.textContent = config.tableSubhint;
+  }
+}
+
+// ------------------------------------
+// Прочитати форму
+// ------------------------------------
+function readFormData() {
+  const config = getCurrentConfig();
+  const dto = {};
+
+  config.fields.forEach((field) => {
+    const el = document.getElementById(field.name);
+    if (!el) return;
+
+    if (field.type === "number") {
+      dto[field.name] = Number(el.value);
+    } else if (field.name === "isActive") {
+      dto[field.name] = el.value === "true";
+    } else if (field.type === "datetime-local") {
+      dto[field.name] = el.value === "" ? new Date().toISOString() : el.value;
+    } else {
+      dto[field.name] = el.value;
+    }
+  });
+
+  return dto;
+}
+
+// ------------------------------------
+// Очистити форму
+// ------------------------------------
 function resetForm() {
-  dom.editingId.value = "";
-  dom.userNameInput.value = "";
-  dom.reasonSelect.value = "";
-  dom.validDateInput.value = "";
-  dom.commentInput.value = "";
-  dom.issuerInput.value = "";
+  state.editId = null;
+  renderFormFields();
+  updateTitles();
 
-  dom.formTitle.textContent = "Додати пропуск";
-  dom.submitBtn.textContent = "Додати";
+  if (dom.cancelEditBtn) {
+    dom.cancelEditBtn.style.display = "none";
+  }
 
-  clearAllErrors();
-  dom.userNameInput.focus();
+  setFormMessage("");
 }
 
-function startEdit(id) {
-  const pass = state.passes.find(x => x.id === id);
-  if (!pass) return;
+// ------------------------------------
+// Завантажити список із сервера
+// ------------------------------------
+async function loadItems() {
+  const config = getCurrentConfig();
 
-  dom.editingId.value = String(pass.id);
-  dom.userNameInput.value = pass.userName;
-  dom.reasonSelect.value = pass.reason;
-  dom.validDateInput.value = pass.validDate;
-  dom.commentInput.value = pass.comment;
-  dom.issuerInput.value = pass.issuer;
+  try {
+    const response = await fetch(`${API}/${config.endpoint}`);
 
-  dom.formTitle.textContent = `Редагувати пропуск #${pass.id}`;
-  dom.submitBtn.textContent = "Зберегти";
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
 
-  clearAllErrors();
-  dom.userNameInput.focus();
+    const result = await response.json();
+
+    let items = Array.isArray(result.data) ? result.data : [];
+
+    const q = state.searchQuery.trim().toLowerCase();
+    if (q) {
+      items = items.filter((item) =>
+        JSON.stringify(item).toLowerCase().includes(q)
+      );
+    }
+
+    renderTable(items);
+    setFormMessage("");
+  } catch (error) {
+    console.error("Помилка завантаження:", error);
+
+    if (dom.itemsTableBody) {
+      dom.itemsTableBody.innerHTML = "";
+    }
+
+    if (dom.emptyState) {
+      dom.emptyState.style.display = "block";
+    }
+
+    setFormMessage("Не вдалося завантажити дані із сервера.");
+  }
 }
 
-function onSubmit(e) {
-  e.preventDefault();
+// ------------------------------------
+// Перемкнути сутність
+// ------------------------------------
+function switchEntity(entityName) {
+  state.currentEntity = entityName;
+  state.editId = null;
+  state.searchQuery = "";
 
-  const dto = readForm();
-  if (!validate(dto)) return;
+  if (dom.searchInput) {
+    dom.searchInput.value = "";
+  }
 
-  const isEditing = dto.editingId !== "";
+  if (dom.cancelEditBtn) {
+    dom.cancelEditBtn.style.display = "none";
+  }
 
-  if (isEditing) {
-    const id = Number(dto.editingId);
-    const ok = updatePass(id, dto);
-    if (!ok) {
-      dom.formError.textContent = "Не знайшов запис для оновлення, його могли видалити.";
+  dom.tabs.forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.entity === entityName);
+  });
+
+  renderFormFields();
+  renderTableHead();
+  updateTitles();
+  setFormMessage("");
+  loadItems();
+}
+
+// ------------------------------------
+// Створити запис
+// ------------------------------------
+async function createItem(dto) {
+  const config = getCurrentConfig();
+
+  const response = await fetch(`${API}/${config.endpoint}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(dto)
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.error?.message || "Помилка створення запису");
+  }
+}
+
+// ------------------------------------
+// Оновити запис
+// ------------------------------------
+async function updateItem(id, dto) {
+  const config = getCurrentConfig();
+
+  const response = await fetch(`${API}/${config.endpoint}/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(dto)
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.error?.message || "Помилка оновлення запису");
+  }
+}
+
+// ------------------------------------
+// Отримати запис по id
+// ------------------------------------
+async function getItemById(id) {
+  const config = getCurrentConfig();
+
+  const response = await fetch(`${API}/${config.endpoint}/${id}`);
+
+  if (!response.ok) {
+    throw new Error("Не вдалося отримати запис");
+  }
+
+  return await response.json();
+}
+
+// ------------------------------------
+// Видалити запис
+// ------------------------------------
+async function deleteItem(id) {
+  const config = getCurrentConfig();
+
+  const response = await fetch(`${API}/${config.endpoint}/${id}`, {
+    method: "DELETE"
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.error?.message || "Помилка видалення запису");
+  }
+}
+
+// ------------------------------------
+// Submit форми
+// ------------------------------------
+async function onFormSubmit(event) {
+  event.preventDefault();
+
+  try {
+    const dto = readFormData();
+
+    if (state.editId) {
+      await updateItem(state.editId, dto);
+      setFormMessage("Запис успішно оновлено.");
+    } else {
+      await createItem(dto);
+      setFormMessage("Запис успішно створено.");
+    }
+
+    resetForm();
+    await loadItems();
+  } catch (error) {
+    console.error(error);
+    setFormMessage(error.message || "Сталася помилка.");
+  }
+}
+
+// ------------------------------------
+// Клік по таблиці
+// ------------------------------------
+async function onTableClick(event) {
+  const target = event.target;
+
+  if (!(target instanceof HTMLElement)) return;
+
+  const id = target.dataset.id;
+  if (!id) return;
+
+  try {
+    if (target.classList.contains("edit-btn")) {
+      const item = await getItemById(id);
+
+      state.editId = id;
+      renderFormFields(item);
+      updateTitles();
+
+      if (dom.cancelEditBtn) {
+        dom.cancelEditBtn.style.display = "inline-block";
+      }
+
+      setFormMessage("Режим редагування.");
       return;
     }
-  } else {
-    const dup = state.passes.some(p =>
-      p.userName.toLowerCase() === dto.userName.toLowerCase() &&
-      p.validDate === dto.validDate
-    );
-    if (dup) {
-      dom.formError.textContent = "Такий пропуск вже існує (UserName + ValidDate).";
-      return;
+
+    if (target.classList.contains("delete-btn")) {
+      await deleteItem(id);
+      setFormMessage("Запис видалено.");
+      await loadItems();
     }
-    addPass(dto);
-  }
-
-  saveToStorage();
-  render();
-  resetForm();
-}
-
-function onToolbarChange() {
-  state.ui.searchUserName = dom.searchInput.value;
-  state.ui.filterReason = dom.filterReason.value;
-  state.ui.sortMode = dom.sortSelect.value;
-  render();
-}
-
-function onClearAll() {
-  const sure = confirm("Точно очистити всі записи? Це видалить і з localStorage.");
-  if (!sure) return;
-  state.passes = [];
-  saveToStorage();
-  render();
-  resetForm();
-}
-
-function onTableClick(e) {
-  const t = e.target;
-
-  if (t.classList.contains("delete-btn")) {
-    const id = Number(t.dataset.id);
-    deletePass(id);
-    saveToStorage();
-    render();
-    if (dom.editingId.value === String(id)) resetForm();
-    return;
-  }
-
-  if (t.classList.contains("edit-btn")) {
-    startEdit(Number(t.dataset.id));
-    return;
+  } catch (error) {
+    console.error(error);
+    setFormMessage(error.message || "Сталася помилка.");
   }
 }
 
+// ------------------------------------
+// Ініціалізація
+// ------------------------------------
 function init() {
-  state.passes = loadFromStorage();
+  dom.tabs.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      switchEntity(btn.dataset.entity);
+    });
+  });
 
-  dom.form.addEventListener("submit", onSubmit);
-  dom.resetBtn.addEventListener("click", resetForm);
+  if (dom.entityForm) {
+    dom.entityForm.addEventListener("submit", onFormSubmit);
+  }
 
-  dom.searchInput.addEventListener("input", onToolbarChange);
-  dom.filterReason.addEventListener("change", onToolbarChange);
-  dom.sortSelect.addEventListener("change", onToolbarChange);
+  if (dom.resetBtn) {
+    dom.resetBtn.addEventListener("click", () => {
+      resetForm();
+    });
+  }
 
-  dom.clearAllBtn.addEventListener("click", onClearAll);
+  if (dom.cancelEditBtn) {
+    dom.cancelEditBtn.addEventListener("click", () => {
+      resetForm();
+      setFormMessage("Редагування скасовано.");
+    });
+  }
 
-  dom.tbody.addEventListener("click", onTableClick);
+  if (dom.searchInput) {
+    dom.searchInput.addEventListener("input", () => {
+      state.searchQuery = dom.searchInput.value;
+      loadItems();
+    });
+  }
 
-  render();
-  resetForm();
+  if (dom.clearSearchBtn) {
+    dom.clearSearchBtn.addEventListener("click", () => {
+      state.searchQuery = "";
+      if (dom.searchInput) {
+        dom.searchInput.value = "";
+      }
+      loadItems();
+    });
+  }
+
+  if (dom.itemsTableBody) {
+    dom.itemsTableBody.addEventListener("click", onTableClick);
+  }
+
+  switchEntity("users");
 }
 
 init();

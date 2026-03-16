@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Система пропусків – Комп’ютерний клас</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js" defer></script>
+</head>
+
+<body>
+  <div class="container">
+    <header class="topbar">
+      <div>
+        <h1>Система пропусків</h1>
+        <p class="hint">Комп’ютерний клас</p>
+      </div>
+      <div class="badge">ЛР2</div>
+    </header>
+
+    <nav class="entity-tabs">
+      <button type="button" class="tab-btn active" data-entity="users">Users</button>
+      <button type="button" class="tab-btn" data-entity="passes">Passes</button>
+      <button type="button" class="tab-btn" data-entity="reasons">Reasons</button>
+      <button type="button" class="tab-btn" data-entity="logs">Logs</button>
+    </nav>
+
+    <main class="layout">
+      <section class="card">
+        <h2 id="formTitle">Нова сутність</h2>
+        <p class="subhint" id="formSubhint">Форма створення запису.</p>
+
+        <form id="entityForm" novalidate>
+          <div id="formFields"></div>
+
+          <div class="buttons">
+            <button id="submitBtn" type="submit">Зберегти</button>
+            <button id="resetBtn" type="button">Очистити</button>
+            <button id="cancelEditBtn" type="button" class="ghost" style="display:none;">
+              Скасувати редагування
+            </button>
+          </div>
+
+          <p class="form-msg" id="formMsg"></p>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2 id="tableTitle">Журнал</h2>
+        <p class="subhint" id="tableSubhint">Список записів, пошук, редагування та видалення.</p>
+
+        <div class="toolbar">
+          <input id="searchInput" type="text" placeholder="Пошук..." />
+          <button id="clearSearchBtn" type="button" class="ghost">Очистити пошук</button>
+        </div>
+
+        <p id="emptyState" class="hint">Дані відсутні.</p>
+
+        <div class="table-wrap">
+          <table id="itemsTable">
+            <thead id="itemsTableHead"></thead>
+            <tbody id="itemsTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
