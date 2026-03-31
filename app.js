@@ -1,10 +1,14 @@
 // ------------------------------------
-// Базова адреса API
+// Адреса бекенду
+// Сюди фронтенд буде відправляти всі GET / POST / PUT / DELETE запити
 // ------------------------------------
-const API = "http://localhost:3000/api";
+const API = "http://127.0.0.1:3000/api";
 
 // ------------------------------------
-// Поточний стан сторінки
+// Стан сторінки
+// currentEntity - яка вкладка зараз активна
+// editId - id запису, який зараз редагується
+// searchQuery - текст із поля пошуку
 // ------------------------------------
 const state = {
   currentEntity: "users",
@@ -13,7 +17,12 @@ const state = {
 };
 
 // ------------------------------------
-// Конфігурація сутностей
+// Конфігурація всіх сутностей
+// Тут описано:
+// - заголовки
+// - endpoint для API
+// - поля форми
+// - колонки таблиці
 // ------------------------------------
 const entityConfig = {
   users: {
@@ -26,7 +35,6 @@ const entityConfig = {
 
     fields: [
       { name: "fullName", label: "ПІБ", type: "text" },
-
       {
         name: "role",
         label: "Роль",
@@ -36,7 +44,6 @@ const entityConfig = {
           { value: "teacher", text: "Викладач" }
         ]
       },
-
       {
         name: "isActive",
         label: "Активний",
@@ -66,25 +73,23 @@ const entityConfig = {
 
     fields: [
       { name: "userId", label: "ID користувача", type: "number" },
-      { name: "validFrom", label: "Дата початку", type: "date" },
-      { name: "validTo", label: "Дата завершення", type: "date" },
+      { name: "date", label: "Дата", type: "date" },
       {
         name: "status",
         label: "Статус",
         type: "select",
         options: [
-          { value: "active", text: "Активний" },
-          { value: "finished", text: "Завершений" },
-          { value: "canceled", text: "Скасований" }
+          { value: "approved", text: "Погоджено" },
+          { value: "pending", text: "Очікує" },
+          { value: "rejected", text: "Відхилено" }
         ]
       }
     ],
 
     columns: [
       { key: "id", label: "#" },
-      { key: "userId", label: "User ID" },
-      { key: "validFrom", label: "Дата початку" },
-      { key: "validTo", label: "Дата завершення" },
+      { key: "userId", label: "ID користувача" },
+      { key: "date", label: "Дата" },
       { key: "status", label: "Статус" }
     ]
   },
@@ -98,21 +103,22 @@ const entityConfig = {
     endpoint: "reasons",
 
     fields: [
-      {
-        name: "title",
-        label: "Назва",
-        type: "select",
-        options: [
-          { value: "practice", text: "Практична робота" },
-          { value: "lab", text: "Лабораторна робота" },
-          { value: "self", text: "Самостійна робота" },
-          { value: "exam", text: "Екзамен" },
-          { value: "test", text: "Тестування" },
-          { value: "other", text: "Інше" }
-        ]
-      },
-      { name: "description", label: "Опис", type: "textarea" }
-    ],
+  {
+    name: "title",
+    label: "Причина",
+    type: "select",
+    options: [
+      { value: "Лабораторна", text: "Лабораторна" },
+      { value: "Іспит", text: "Іспит" },
+      { value: "Консультація", text: "Консультація" }
+    ]
+  },
+  {
+    name: "description",
+    label: "Опис",
+    type: "textarea"
+  }
+],
 
     columns: [
       { key: "id", label: "#" },
@@ -130,33 +136,23 @@ const entityConfig = {
     endpoint: "logs",
 
     fields: [
-      { name: "userId", label: "ID користувача", type: "number" },
-      { name: "passId", label: "ID пропуску", type: "number" },
-      {
-        name: "action",
-        label: "Дія",
-        type: "select",
-        options: [
-          { value: "create", text: "Створено" },
-          { value: "update", text: "Оновлено" },
-          { value: "delete", text: "Видалено" }
-        ]
-      },
-      { name: "createdAt", label: "Дата створення", type: "datetime-local" }
+      { name: "action", label: "Дія", type: "text" },
+      { name: "entity", label: "Сутність", type: "text" },
+      { name: "entityId", label: "ID сутності", type: "number" }
     ],
 
     columns: [
       { key: "id", label: "#" },
-      { key: "userId", label: "User ID" },
-      { key: "passId", label: "Pass ID" },
       { key: "action", label: "Дія" },
-      { key: "createdAt", label: "Дата створення" }
+      { key: "entity", label: "Сутність" },
+      { key: "entityId", label: "ID сутності" }
     ]
   }
 };
 
 // ------------------------------------
-// Посилання на DOM-елементи
+// Посилання на HTML-елементи
+// Тут один раз знаходимо все, що потрібно на сторінці
 // ------------------------------------
 const dom = {
   tabs: document.querySelectorAll(".tab-btn"),
@@ -178,7 +174,8 @@ const dom = {
 };
 
 // ------------------------------------
-// Безпечне екранування HTML
+// Екранування HTML
+// Щоб у таблицю безпечно вставляти текст
 // ------------------------------------
 function esc(value) {
   return String(value ?? "")
@@ -190,14 +187,14 @@ function esc(value) {
 }
 
 // ------------------------------------
-// Отримати конфіг поточної сутності
+// Повертає конфігурацію активної сутності
 // ------------------------------------
 function getCurrentConfig() {
   return entityConfig[state.currentEntity];
 }
 
 // ------------------------------------
-// Повідомлення під формою
+// Виводить повідомлення під формою
 // ------------------------------------
 function setFormMessage(message) {
   if (dom.formMsg) {
@@ -206,15 +203,37 @@ function setFormMessage(message) {
 }
 
 // ------------------------------------
-// Намалювати поля форми
+// Перетворення значень для красивого показу в таблиці
+// Тут ми робимо значення більш людськими
+// ------------------------------------
+function formatValue(fieldKey, value) {
+  if (fieldKey === "role") {
+    if (value === "student") return "Студент";
+    if (value === "teacher") return "Викладач";
+  }
+
+  if (fieldKey === "isActive") {
+    return value ? "Так" : "Ні";
+  }
+
+  if (fieldKey === "status") {
+    if (value === "approved") return "Погоджено";
+    if (value === "pending") return "Очікує";
+    if (value === "rejected") return "Відхилено";
+  }
+
+  return value;
+}
+
+// ------------------------------------
+// Малює поля форми
+// item = null -> створення нового запису
+// item != null -> редагування існуючого запису
 // ------------------------------------
 function renderFormFields(item = null) {
   const config = getCurrentConfig();
 
-  if (!dom.formFields) {
-    console.error("Елемент #formFields не знайдено в HTML");
-    return;
-  }
+  if (!dom.formFields) return;
 
   dom.formFields.innerHTML = config.fields.map((field) => {
     const value = item ? (item[field.name] ?? "") : "";
@@ -256,7 +275,7 @@ function renderFormFields(item = null) {
 }
 
 // ------------------------------------
-// Намалювати шапку таблиці
+// Малює шапку таблиці
 // ------------------------------------
 function renderTableHead() {
   const config = getCurrentConfig();
@@ -272,7 +291,7 @@ function renderTableHead() {
 }
 
 // ------------------------------------
-// Намалювати таблицю
+// Малює рядки таблиці
 // ------------------------------------
 function renderTable(items) {
   const config = getCurrentConfig();
@@ -285,7 +304,11 @@ function renderTable(items) {
 
   dom.itemsTableBody.innerHTML = items.map((item) => `
     <tr>
-      ${config.columns.map((col) => `<td>${esc(item[col.key])}</td>`).join("")}
+      ${config.columns.map((col) => {
+        const rawValue = item[col.key];
+        const formattedValue = formatValue(col.key, rawValue);
+        return `<td>${esc(formattedValue)}</td>`;
+      }).join("")}
       <td>
         <button type="button" class="edit-btn" data-id="${esc(item.id)}">Редагувати</button>
         <button type="button" class="delete-btn danger" data-id="${esc(item.id)}">Видалити</button>
@@ -295,7 +318,8 @@ function renderTable(items) {
 }
 
 // ------------------------------------
-// Оновити заголовки
+// Оновлює заголовки форми і таблиці
+// Залежно від активної вкладки і режиму редагування
 // ------------------------------------
 function updateTitles() {
   const config = getCurrentConfig();
@@ -318,7 +342,10 @@ function updateTitles() {
 }
 
 // ------------------------------------
-// Прочитати форму
+// Зчитує дані з форми і формує об'єкт dto
+// Тут важливо правильно перетворити типи:
+// - isActive -> boolean
+// - userId / entityId -> number
 // ------------------------------------
 function readFormData() {
   const config = getCurrentConfig();
@@ -328,22 +355,29 @@ function readFormData() {
     const el = document.getElementById(field.name);
     if (!el) return;
 
-    if (field.type === "number") {
-      dto[field.name] = Number(el.value);
-    } else if (field.name === "isActive") {
-      dto[field.name] = el.value === "true";
-    } else if (field.type === "datetime-local") {
-      dto[field.name] = el.value === "" ? new Date().toISOString() : el.value;
-    } else {
-      dto[field.name] = el.value;
+    let value = el.value;
+
+    // Для булевого поля isActive перетворюємо "true"/"false" у true/false
+    if (field.name === "isActive") {
+      dto[field.name] = value === "true";
+      return;
     }
+
+    // Для числових полів перетворюємо значення у Number
+    if (field.type === "number") {
+      dto[field.name] = value === "" ? "" : Number(value);
+      return;
+    }
+
+    // Для решти полів обрізаємо пробіли
+    dto[field.name] = typeof value === "string" ? value.trim() : value;
   });
 
   return dto;
 }
 
 // ------------------------------------
-// Очистити форму
+// Скидає форму і виходить з режиму редагування
 // ------------------------------------
 function resetForm() {
   state.editId = null;
@@ -358,7 +392,8 @@ function resetForm() {
 }
 
 // ------------------------------------
-// Завантажити список із сервера
+// Завантажує список записів із сервера
+// GET /api/{endpoint}
 // ------------------------------------
 async function loadItems() {
   const config = getCurrentConfig();
@@ -370,10 +405,11 @@ async function loadItems() {
       throw new Error(`HTTP ${response.status}`);
     }
 
+    // Бекенд повертає просто масив
     const result = await response.json();
-
     let items = Array.isArray(result.data) ? result.data : [];
 
+    // Локальний пошук по всіх полях запису
     const q = state.searchQuery.trim().toLowerCase();
     if (q) {
       items = items.filter((item) =>
@@ -399,7 +435,92 @@ async function loadItems() {
 }
 
 // ------------------------------------
-// Перемкнути сутність
+// Створює новий запис
+// POST /api/{endpoint}
+// ------------------------------------
+async function createItem(dto) {
+  const config = getCurrentConfig();
+
+  const response = await fetch(`${API}/${config.endpoint}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(dto)
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message || "Помилка створення запису");
+  }
+
+  return await response.json();
+}
+
+// ------------------------------------
+// Оновлює запис
+// PUT /api/{endpoint}/{id}
+// ------------------------------------
+async function updateItem(id, dto) {
+  const config = getCurrentConfig();
+
+  const response = await fetch(`${API}/${config.endpoint}/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(dto)
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message || "Помилка оновлення запису");
+  }
+
+  return await response.json();
+}
+
+// ------------------------------------
+// Отримує один запис по id
+// GET /api/{endpoint}/{id}
+// ------------------------------------
+async function getItemById(id) {
+  const config = getCurrentConfig();
+
+  const response = await fetch(`${API}/${config.endpoint}/${id}`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message || "Не вдалося отримати запис");
+  }
+
+  return await response.json();
+}
+
+// ------------------------------------
+// Видаляє запис
+// DELETE /api/{endpoint}/{id}
+// ------------------------------------
+async function deleteItem(id) {
+  const config = getCurrentConfig();
+
+  const response = await fetch(`${API}/${config.endpoint}/${id}`, {
+    method: "DELETE"
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message || "Помилка видалення запису");
+  }
+}
+
+// ------------------------------------
+// Перемикає вкладку
+// Тут ми:
+// - ставимо нову active вкладку
+// - очищаємо пошук
+// - скидаємо режим редагування
+// - перемальовуємо форму і таблицю
 // ------------------------------------
 function switchEntity(entityName) {
   state.currentEntity = entityName;
@@ -426,78 +547,10 @@ function switchEntity(entityName) {
 }
 
 // ------------------------------------
-// Створити запис
-// ------------------------------------
-async function createItem(dto) {
-  const config = getCurrentConfig();
-
-  const response = await fetch(`${API}/${config.endpoint}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(dto)
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => null);
-    throw new Error(error?.error?.message || "Помилка створення запису");
-  }
-}
-
-// ------------------------------------
-// Оновити запис
-// ------------------------------------
-async function updateItem(id, dto) {
-  const config = getCurrentConfig();
-
-  const response = await fetch(`${API}/${config.endpoint}/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(dto)
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => null);
-    throw new Error(error?.error?.message || "Помилка оновлення запису");
-  }
-}
-
-// ------------------------------------
-// Отримати запис по id
-// ------------------------------------
-async function getItemById(id) {
-  const config = getCurrentConfig();
-
-  const response = await fetch(`${API}/${config.endpoint}/${id}`);
-
-  if (!response.ok) {
-    throw new Error("Не вдалося отримати запис");
-  }
-
-  return await response.json();
-}
-
-// ------------------------------------
-// Видалити запис
-// ------------------------------------
-async function deleteItem(id) {
-  const config = getCurrentConfig();
-
-  const response = await fetch(`${API}/${config.endpoint}/${id}`, {
-    method: "DELETE"
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => null);
-    throw new Error(error?.error?.message || "Помилка видалення запису");
-  }
-}
-
-// ------------------------------------
-// Submit форми
+// Обробник submit форми
+// Якщо editId є -> редагування
+// Якщо editId немає -> створення
+// Після цього перезавантажуємо таблицю
 // ------------------------------------
 async function onFormSubmit(event) {
   event.preventDefault();
@@ -522,7 +575,9 @@ async function onFormSubmit(event) {
 }
 
 // ------------------------------------
-// Клік по таблиці
+// Обробник кліку по таблиці
+// edit-btn -> завантажити запис у форму
+// delete-btn -> видалити запис
 // ------------------------------------
 async function onTableClick(event) {
   const target = event.target;
@@ -560,7 +615,8 @@ async function onTableClick(event) {
 }
 
 // ------------------------------------
-// Ініціалізація
+// Ініціалізація сторінки
+// Тут вішаємо всі події і запускаємо стартову вкладку
 // ------------------------------------
 function init() {
   dom.tabs.forEach((btn) => {
@@ -596,9 +652,11 @@ function init() {
   if (dom.clearSearchBtn) {
     dom.clearSearchBtn.addEventListener("click", () => {
       state.searchQuery = "";
+
       if (dom.searchInput) {
         dom.searchInput.value = "";
       }
+
       loadItems();
     });
   }
@@ -607,6 +665,7 @@ function init() {
     dom.itemsTableBody.addEventListener("click", onTableClick);
   }
 
+  // Стартова вкладка
   switchEntity("users");
 }
 
