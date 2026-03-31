@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS Reasons (
+    id INTEGER PRIMARY KEY,
+    title TEXT NOT NULL UNIQUE,
+    description TEXT
+);

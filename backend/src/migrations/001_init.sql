@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS Users (
+    id INTEGER PRIMARY KEY,
+    fullName TEXT NOT NULL,
+    role TEXT NOT NULL,
+    isActive INTEGER NOT NULL DEFAULT 1
+);

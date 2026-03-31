@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS Passes (
+    id INTEGER PRIMARY KEY,
+    userId INTEGER NOT NULL,
+    reasonId INTEGER,
+    date TEXT NOT NULL,
+    status TEXT NOT NULL,
+    FOREIGN KEY (userId) REFERENCES Users(id) ON DELETE CASCADE,
+    FOREIGN KEY (reasonId) REFERENCES Reasons(id) ON DELETE SET NULL
+);

@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS Logs (
+    id INTEGER PRIMARY KEY,
+    action TEXT NOT NULL,
+    entity TEXT NOT NULL,
+    entityId INTEGER NOT NULL
+);
