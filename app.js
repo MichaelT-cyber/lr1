@@ -156,8 +156,26 @@ const entityConfig = {
     endpoint: "logs",
 
     fields: [
-      { name: "action", label: "Дія", type: "text" },
-      { name: "entity", label: "Сутність", type: "text" }
+      {
+        name: "action",
+        label: "Дія",
+        type: "select",
+        options: [
+          { value: "create", text: "Створити" },
+          { value: "update", text: "Оновити" },
+          { value: "delete", text: "Видалити" }
+        ]
+      },
+      {
+        name: "entity",
+        label: "Сутність",
+        type: "select",
+        options: [
+          { value: "user", text: "Користувач" },
+          { value: "pass", text: "Пропуск" },
+          { value: "reason", text: "Причина" }
+        ]
+      }
     ],
 
     columns: [
