@@ -53,7 +53,7 @@ app.get("/", (req, res) => {
 // ======================================================
 
 // отримати список користувачів
-app.get("/api/users", async (req, res) => {
+app.get("/api/v1/users", async (req, res) => {
     try {
         const users = await all(`
             SELECT id, fullName, role, isActive
@@ -95,7 +95,7 @@ app.get("/api/users/search", async (req, res) => {
 });
 
 // отримати користувача за id
-app.get("/api/users/:id", async (req, res) => {
+app.get("/api/v1/users/:id", async (req, res) => {
     try {
         const userId = Number(req.params.id);
 
@@ -122,7 +122,7 @@ app.get("/api/users/:id", async (req, res) => {
 });
 
 // створити користувача
-app.post("/api/users", async (req, res) => {
+app.post("/api/v1/users", async (req, res) => {
     try {
         const { fullName, role, isActive } = req.body;
 
@@ -163,7 +163,7 @@ app.post("/api/users", async (req, res) => {
 });
 
 // оновити користувача
-app.put("/api/users/:id", async (req, res) => {
+app.put("/api/v1/users/:id", async (req, res) => {
     try {
         const userId = Number(req.params.id);
         const { fullName, role, isActive } = req.body;
@@ -213,7 +213,7 @@ app.put("/api/users/:id", async (req, res) => {
 });
 
 // видалити користувача
-app.delete("/api/users/:id", async (req, res) => {
+app.delete("/api/v1/users/:id", async (req, res) => {
     try {
         const userId = Number(req.params.id);
 
@@ -245,7 +245,7 @@ app.delete("/api/users/:id", async (req, res) => {
 // ======================================================
 
 // отримати список пропусків
-app.get("/api/passes", async (req, res) => {
+app.get("/api/v1/passes", async (req, res) => {
     try {
         const passes = await all(`
             SELECT id, userId, reasonId, date, status
@@ -260,7 +260,7 @@ app.get("/api/passes", async (req, res) => {
 });
 
 // отримати список пропусків разом з даними користувача і причини
-app.get("/api/passes/full", async (req, res) => {
+app.get("/api/v1/passes/full", async (req, res) => {
     try {
         const passes = await all(`
             SELECT
@@ -285,7 +285,7 @@ app.get("/api/passes/full", async (req, res) => {
 });
 
 // статистика пропусків
-app.get("/api/passes/stats", async (req, res) => {
+app.get("/api/v1/passes/stats", async (req, res) => {
     try {
         // загальна кількість пропусків
         const total = await get(`
@@ -313,7 +313,7 @@ app.get("/api/passes/stats", async (req, res) => {
 });
 
 // отримати пропуск за id
-app.get("/api/passes/:id", async (req, res) => {
+app.get("/api/v1/passes/:id", async (req, res) => {
     try {
         const passId = Number(req.params.id);
 
@@ -340,7 +340,7 @@ app.get("/api/passes/:id", async (req, res) => {
 });
 
 // створити пропуск
-app.post("/api/passes", async (req, res) => {
+app.post("/api/v1/passes", async (req, res) => {
     try {
         const { userId, reasonId, date, status } = req.body;
 
@@ -404,7 +404,7 @@ app.post("/api/passes", async (req, res) => {
 });
 
 // оновити пропуск
-app.put("/api/passes/:id", async (req, res) => {
+app.put("/api/v1/passes/:id", async (req, res) => {
     try {
         const passId = Number(req.params.id);
         const { userId, reasonId, date, status } = req.body;
@@ -484,7 +484,7 @@ app.put("/api/passes/:id", async (req, res) => {
 });
 
 // видалити пропуск
-app.delete("/api/passes/:id", async (req, res) => {
+app.delete("/api/v1/passes/:id", async (req, res) => {
     try {
         const passId = Number(req.params.id);
 
@@ -516,7 +516,7 @@ app.delete("/api/passes/:id", async (req, res) => {
 // ======================================================
 
 // отримати список причин
-app.get("/api/reasons", async (req, res) => {
+app.get("/api/v1/reasons", async (req, res) => {
     try {
         const reasons = await all(`
             SELECT id, title, description
@@ -531,7 +531,7 @@ app.get("/api/reasons", async (req, res) => {
 });
 
 // отримати причину за id
-app.get("/api/reasons/:id", async (req, res) => {
+app.get("/api/v1/reasons/:id", async (req, res) => {
     try {
         const reasonId = Number(req.params.id);
 
@@ -556,7 +556,7 @@ app.get("/api/reasons/:id", async (req, res) => {
 });
 
 // створити причину
-app.post("/api/reasons", async (req, res) => {
+app.post("/api/v1/reasons", async (req, res) => {
     try {
         const { title, description } = req.body;
 
@@ -588,7 +588,7 @@ app.post("/api/reasons", async (req, res) => {
 });
 
 // оновити причину
-app.put("/api/reasons/:id", async (req, res) => {
+app.put("/api/v1/reasons/:id", async (req, res) => {
     try {
         const reasonId = Number(req.params.id);
         const { title, description } = req.body;
@@ -631,7 +631,7 @@ app.put("/api/reasons/:id", async (req, res) => {
 });
 
 // видалити причину
-app.delete("/api/reasons/:id", async (req, res) => {
+app.delete("/api/v1/reasons/:id", async (req, res) => {
     try {
         const reasonId = Number(req.params.id);
 
@@ -660,7 +660,7 @@ app.delete("/api/reasons/:id", async (req, res) => {
 // ======================================================
 
 // отримати список логів
-app.get("/api/logs", async (req, res) => {
+app.get("/api/v1/logs", async (req, res) => {
     try {
         const logs = await all(`
             SELECT id, action, entity, entityId
@@ -675,7 +675,7 @@ app.get("/api/logs", async (req, res) => {
 });
 
 // отримати лог за id
-app.get("/api/logs/:id", async (req, res) => {
+app.get("/api/v1/logs/:id", async (req, res) => {
     try {
         const logId = Number(req.params.id);
 
@@ -700,9 +700,9 @@ app.get("/api/logs/:id", async (req, res) => {
 });
 
 // створити лог
-app.post("/api/logs", async (req, res) => {
+app.post("/api/v1/logs", async (req, res) => {
     try {
-        const { action, entity, entityId } = req.body;
+        const { action, entity, } = req.body;
 
         if (!action || typeof action !== "string" || action.trim().length < 2) {
             return fail(res, "Поле action обов'язкове", 400);
@@ -711,14 +711,54 @@ app.post("/api/logs", async (req, res) => {
         if (!entity || typeof entity !== "string" || entity.trim().length < 2) {
             return fail(res, "Поле entity обов'язкове", 400);
         }
-
-        if (!entityId || Number.isNaN(Number(entityId))) {
-            return fail(res, "Поле entityId обов'язкове", 400);
-        }
+        
 
         const safeAction = action.trim().replace(/'/g, "''");
         const safeEntity = entity.trim().replace(/'/g, "''");
-        const numericEntityId = Number(entityId);
+        let numericEntityId = null;
+
+if (safeEntity === "user") {
+    const lastUser = await get(`
+        SELECT id
+        FROM Users
+        ORDER BY id DESC
+        LIMIT 1;
+    `);
+
+    if (!lastUser) {
+        return fail(res, "Немає жодного користувача для прив'язки логу", 400);
+    }
+
+    numericEntityId = lastUser.id;
+} else if (safeEntity === "pass") {
+    const lastPass = await get(`
+        SELECT id
+        FROM Passes
+        ORDER BY id DESC
+        LIMIT 1;
+    `);
+
+    if (!lastPass) {
+        return fail(res, "Немає жодного пропуску для прив'язки логу", 400);
+    }
+
+    numericEntityId = lastPass.id;
+} else if (safeEntity === "reason") {
+    const lastReason = await get(`
+        SELECT id
+        FROM Reasons
+        ORDER BY id DESC
+        LIMIT 1;
+    `);
+
+    if (!lastReason) {
+        return fail(res, "Немає жодної причини для прив'язки логу", 400);
+    }
+
+    numericEntityId = lastReason.id;
+} else {
+    return fail(res, "entity має бути: user, pass або reason", 400);
+}
 
         const result = await run(`
             INSERT INTO Logs (action, entity, entityId)
@@ -738,7 +778,7 @@ app.post("/api/logs", async (req, res) => {
 });
 
 // оновити лог
-app.put("/api/logs/:id", async (req, res) => {
+app.put("/api/v1/logs/:id", async (req, res) => {
     try {
         const logId = Number(req.params.id);
         const { action, entity, entityId } = req.body;
@@ -788,7 +828,7 @@ app.put("/api/logs/:id", async (req, res) => {
 });
 
 // видалити лог
-app.delete("/api/logs/:id", async (req, res) => {
+app.delete("/api/v1/logs/:id", async (req, res) => {
     try {
         const logId = Number(req.params.id);
 
