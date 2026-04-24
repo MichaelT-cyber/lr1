@@ -15,7 +15,7 @@
         <h1>Система пропусків</h1>
         <p class="hint">Комп’ютерний клас</p>
       </div>
-      <div class="badge">ЛР2</div>
+      <div class="badge">ЛР4</div>
     </header>
 
     <nav class="entity-tabs">
@@ -51,9 +51,18 @@
 
         <div class="toolbar">
           <input id="searchInput" type="text" placeholder="Пошук..." />
+
+          <select id="statusFilter">
+            <option value="">Усі статуси</option>
+            <option value="approved">Погоджено</option>
+            <option value="pending">Очікує</option>
+            <option value="rejected">Відхилено</option>
+          </select>
+
           <button id="clearSearchBtn" type="button" class="ghost">Очистити пошук</button>
         </div>
 
+        <p id="listStatus" class="hint"></p>
         <p id="emptyState" class="hint">Дані відсутні.</p>
 
         <div class="table-wrap">

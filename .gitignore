@@ -1,0 +1,15 @@
+# Node modules
+node_modules/
+
+# VS Code налаштування
+.vscode/
+
+# База даних
+data/*.db
+
+# Логи (на всякий)
+*.log
+
+# OS файли
+.DS_Store
+Thumbs.db

@@ -2,7 +2,25 @@
 // Адреса бекенду
 // Сюди фронтенд буде відправляти всі GET / POST / PUT / DELETE запити
 // ------------------------------------
-const API = "http://127.0.0.1:3000/api";
+const API = "http://127.0.0.1:3000/api/v1";
+
+// універсальний клієнт для API
+async function apiRequest(url, options = {}) {
+  const response = await fetch(url, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+    ...options,
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Помилка API");
+  }
+
+  return data;
+}
 
 // ------------------------------------
 // Стан сторінки
@@ -14,6 +32,7 @@ const state = {
   currentEntity: "users",
   editId: null,
   searchQuery: "",
+  statusFilter: "",
 };
 
 // ------------------------------------
@@ -70,6 +89,7 @@ const entityConfig = {
     formSubhint: "Створення та редагування пропусків.",
     tableSubhint: "Перегляд, пошук, редагування та видалення пропусків.",
     endpoint: "passes",
+    listEndpoint: "passes/full",
 
     fields: [
       { name: "userId", label: "ID користувача", type: "number" },
@@ -137,8 +157,7 @@ const entityConfig = {
 
     fields: [
       { name: "action", label: "Дія", type: "text" },
-      { name: "entity", label: "Сутність", type: "text" },
-      { name: "entityId", label: "ID сутності", type: "number" }
+      { name: "entity", label: "Сутність", type: "text" }
     ],
 
     columns: [
@@ -168,6 +187,8 @@ const dom = {
   formMsg: document.getElementById("formMsg"),
   searchInput: document.getElementById("searchInput"),
   clearSearchBtn: document.getElementById("clearSearchBtn"),
+  statusFilter: document.getElementById("statusFilter"),
+  listStatus: document.getElementById("listStatus"),
   emptyState: document.getElementById("emptyState"),
   itemsTableHead: document.getElementById("itemsTableHead"),
   itemsTableBody: document.getElementById("itemsTableBody"),
@@ -199,6 +220,11 @@ function getCurrentConfig() {
 function setFormMessage(message) {
   if (dom.formMsg) {
     dom.formMsg.textContent = message;
+  }
+}
+function setListStatus(message) {
+  if (dom.listStatus) {
+    dom.listStatus.textContent = message;
   }
 }
 
@@ -399,25 +425,52 @@ async function loadItems() {
   const config = getCurrentConfig();
 
   try {
-    const response = await fetch(`${API}/${config.endpoint}`);
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+    // Показуємо стан завантаження
+    setListStatus("Завантаження...");
+    if (dom.emptyState) {
+      dom.emptyState.style.display = "none";
+    }
+    if (dom.itemsTableBody) {
+      dom.itemsTableBody.innerHTML = "";
     }
 
-    // Бекенд повертає просто масив
-    const result = await response.json();
-    let items = Array.isArray(result.data) ? result.data : [];
+    const listEndpoint = config.listEndpoint || config.endpoint;
+    const result = await apiRequest(`${API}/${listEndpoint}`);
+    
+    let items = [];
 
-    // Локальний пошук по всіх полях запису
-    const q = state.searchQuery.trim().toLowerCase();
+    if (Array.isArray(result.data)) {
+     items = result.data;
+    } else if (result.data) {
+      items = [result.data];
+    }
+
+    const q = (state.searchQuery || "").trim().toLowerCase();
     if (q) {
       items = items.filter((item) =>
         JSON.stringify(item).toLowerCase().includes(q)
       );
     }
 
+    if (state.statusFilter) {
+  items = items.filter(
+    (item) => item.status === state.statusFilter
+  );
+    }
+
+    if (items.length === 0) {
+      setListStatus("");
+      if (dom.emptyState) {
+        dom.emptyState.style.display = "block";
+      }
+      if (dom.itemsTableBody) {
+        dom.itemsTableBody.innerHTML = "";
+      }
+      return;
+    }
+
     renderTable(items);
+    setListStatus("");
     setFormMessage("");
   } catch (error) {
     console.error("Помилка завантаження:", error);
@@ -427,9 +480,10 @@ async function loadItems() {
     }
 
     if (dom.emptyState) {
-      dom.emptyState.style.display = "block";
+      dom.emptyState.style.display = "none";
     }
 
+    setListStatus("Помилка завантаження.");
     setFormMessage("Не вдалося завантажити дані із сервера.");
   }
 }
@@ -441,20 +495,10 @@ async function loadItems() {
 async function createItem(dto) {
   const config = getCurrentConfig();
 
-  const response = await fetch(`${API}/${config.endpoint}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(dto)
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => null);
-    throw new Error(error?.message || "Помилка створення запису");
-  }
-
-  return await response.json();
+  return await apiRequest(`${API}/${config.endpoint}`, {
+  method: "POST",
+  body: JSON.stringify(dto),
+  })
 }
 
 // ------------------------------------
@@ -464,20 +508,11 @@ async function createItem(dto) {
 async function updateItem(id, dto) {
   const config = getCurrentConfig();
 
-  const response = await fetch(`${API}/${config.endpoint}/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(dto)
+  return await apiRequest(`${API}/${config.endpoint}/${id}`, {
+  method: "PUT",
+  body: JSON.stringify(dto),
   });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => null);
-    throw new Error(error?.message || "Помилка оновлення запису");
-  }
-
-  return await response.json();
+  
 }
 
 // ------------------------------------
@@ -504,14 +539,10 @@ async function getItemById(id) {
 async function deleteItem(id) {
   const config = getCurrentConfig();
 
-  const response = await fetch(`${API}/${config.endpoint}/${id}`, {
-    method: "DELETE"
+  return await apiRequest(`${API}/${config.endpoint}/${id}`, {
+  method: "DELETE",
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => null);
-    throw new Error(error?.message || "Помилка видалення запису");
-  }
 }
 
 // ------------------------------------
@@ -523,6 +554,9 @@ async function deleteItem(id) {
 // - перемальовуємо форму і таблицю
 // ------------------------------------
 function switchEntity(entityName) {
+  // ЗБЕРІГАЄМО АКТИВНУ ВКЛАДКУ
+  sessionStorage.setItem("activeTab", entityName);
+
   state.currentEntity = entityName;
   state.editId = null;
   state.searchQuery = "";
@@ -584,15 +618,34 @@ async function onTableClick(event) {
 
   if (!(target instanceof HTMLElement)) return;
 
-  const id = target.dataset.id;
-  if (!id) return;
-
   try {
+    // Клік по комірці таблиці -> показ деталей
+    if (target.tagName === "TD") {
+      const row = target.closest("tr");
+      const id = row?.querySelector(".edit-btn")?.dataset.id;
+
+      if (!id) return;
+
+      const item = await getItemById(id);
+
+      alert(`
+ID: ${item.data.id}
+ПІБ: ${item.data.fullName}
+Роль: ${item.data.role}
+Активний: ${item.data.isActive ? "Так" : "Ні"}
+      `);
+
+      return;
+    }
+
+    const id = target.dataset.id;
+    if (!id) return;
+
     if (target.classList.contains("edit-btn")) {
       const item = await getItemById(id);
 
       state.editId = id;
-      renderFormFields(item);
+      renderFormFields(item.data);
       updateTitles();
 
       if (dom.cancelEditBtn) {
@@ -661,12 +714,20 @@ function init() {
     });
   }
 
+  if (dom.statusFilter) {
+  dom.statusFilter.addEventListener("change", (e) => {
+    state.statusFilter = e.target.value;
+    loadItems();
+  });
+}
+
   if (dom.itemsTableBody) {
     dom.itemsTableBody.addEventListener("click", onTableClick);
   }
 
   // Стартова вкладка
-  switchEntity("users");
+  const savedTab = sessionStorage.getItem("activeTab") || "users";
+  switchEntity(savedTab);
 }
 
 init();
