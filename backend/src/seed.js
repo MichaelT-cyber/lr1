@@ -1,11 +1,11 @@
 // скрипт для заповнення бази тестовими даними
 
-const { initDb } = require("./initDb");
+const { migrate } = require("./migrate");
 const { run } = require("./dbClient");
 
 async function seed() {
     try {
-        await initDb();
+        await migrate();
 
         console.log("Починаємо seed...");
 
